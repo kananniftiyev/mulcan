@@ -56,3 +56,13 @@ void Mulcan::initialize(VkSurfaceKHR surface)
 
     vmaCreateAllocator(&allocator_create_info, &Mulcan::g_vma_allocator);
 }
+
+void Mulcan::cleanup()
+{
+    vmaDestroyAllocator(Mulcan::g_vma_allocator);
+    vkDestroySwapchainKHR(Mulcan::g_device, Mulcan::g_swapchain, nullptr);
+    vkDestroyDevice(Mulcan::g_device, nullptr);
+    vkDestroySurfaceKHR(Mulcan::g_instance, Mulcan::g_surface, nullptr);
+    vkb::destroy_debug_utils_messenger(Mulcan::g_instance, Mulcan::g_debug_messenger, nullptr);
+    vkDestroyInstance(Mulcan::g_instance, nullptr);
+}
