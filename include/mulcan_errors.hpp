@@ -10,7 +10,7 @@ namespace Mulcan
         M_SUCCESS = 4,
         M_VMA_ERROR = 5,
         M_COMMAND_INIT_ERROR = 6,
-
+        M_RENDERPASS_ERROR = 7,
     };
 
     void errorResultToMessage();

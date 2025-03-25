@@ -11,6 +11,12 @@
 
 namespace Mulcan
 {
+    enum class FrameInFlight
+    {
+        DOUBLE_BUFFERING,
+        TRIPLE_BUFFERING,
+    };
+
     static VkDevice g_device;
     static VkInstance g_instance;
     static VkPhysicalDevice g_physical_device;
@@ -24,8 +30,10 @@ namespace Mulcan
     static VmaAllocator g_vma_allocator;
     static VkFormat g_swapchain_format;
     static VkExtent2D g_window_extend;
-    static bool vsync = true;
+    static bool g_vsync = true;
+    static bool g_imgui = false;
     constexpr size_t FRAME_OVERLAP = 2;
+    static VkRenderPass main_pass;
 
     struct FrameData
     {
@@ -37,17 +45,19 @@ namespace Mulcan
 
     std::array<FrameData, FRAME_OVERLAP> frames;
 
+    // Init Functions
     MulcanResult initialize(VkSurfaceKHR surface);
     MulcanResult initializeCommands();
     MulcanResult initializeRenderPass();
     MulcanResult initializeFrameBuffer();
 
+    // Render Functions
     void beginFrame();
     void endFrame();
 
     // Settigns functions
     void setVsync(bool value);
-    void setFrameInFlight(size_t value);
+    void setFrameInFlight(FrameInFlight value);
     void setImgui(bool value);
 
     void cleanup();

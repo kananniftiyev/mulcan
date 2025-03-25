@@ -34,7 +34,7 @@ Mulcan::MulcanResult Mulcan::initialize(VkSurfaceKHR surface)
 
     vkb::Swapchain vkb_swapchain = swapchainBuilder
                                        .set_desired_format(VkSurfaceFormatKHR{.format = Mulcan::g_swapchain_format, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
-                                       .set_desired_present_mode((vsync) ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
+                                       .set_desired_present_mode((Mulcan::g_vsync) ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
                                        .set_desired_extent(800, 600)
                                        .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
                                        .build()
@@ -80,8 +80,75 @@ Mulcan::MulcanResult Mulcan::initializeCommands()
     return Mulcan::MulcanResult::M_SUCCESS;
 }
 
+Mulcan::MulcanResult Mulcan::initializeRenderPass()
+{
+    VkAttachmentDescription color_attachment{
+        .format = Mulcan::g_swapchain_format,
+        .samples = VK_SAMPLE_COUNT_1_BIT,
+        .loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+        .storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+        .stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+        .stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+        .initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+        .finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+
+    VkAttachmentReference color_attachment_refence{
+        .attachment = 0,
+        .layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+
+    VkSubpassDescription subpass{
+        .pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+        .colorAttachmentCount = 1,
+        .pColorAttachments = &color_attachment_refence};
+
+    VkSubpassDependency dependency{
+        .srcSubpass = VK_SUBPASS_EXTERNAL,
+        .dstSubpass = 0,
+        .srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+        .dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT};
+
+    VkRenderPassCreateInfo render_pass_info{
+        .sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+        .attachmentCount = 2,
+        .pAttachments = &color_attachment,
+        .subpassCount = 1,
+        .dependencyCount = 1,
+        .pDependencies = &dependency,
+    };
+
+    CHECK_VK(vkCreateRenderPass(Mulcan::g_device, &render_pass_info, nullptr, &main_pass), Mulcan::MulcanResult::M_RENDERPASS_ERROR);
+    return Mulcan::MulcanResult::M_SUCCESS;
+}
+
+void Mulcan::setVsync(bool value)
+{
+    Mulcan::g_vsync = value;
+}
+
+void Mulcan::setFrameInFlight(FrameInFlight value)
+{
+}
+
+void Mulcan::setImgui(bool value)
+{
+    Mulcan::g_imgui = value;
+}
+
 void Mulcan::cleanup()
 {
+    vkDestroyRenderPass(Mulcan::g_device, Mulcan::main_pass, nullptr);
+    for (auto &frame : frames)
+    {
+        vkDestroyCommandPool(Mulcan::g_device, frame.render_pool, nullptr);
+        vkDestroyFence(Mulcan::g_device, frame.render_fence, nullptr);
+        vkDestroySemaphore(Mulcan::g_device, frame.render_semaphore, nullptr);
+        vkDestroySemaphore(Mulcan::g_device, frame.swapchain_semaphore, nullptr);
+    }
+    for (auto &view : Mulcan::g_swapchain_image_views)
+    {
+        vkDestroyImageView(Mulcan::g_device, view, nullptr);
+    }
     vmaDestroyAllocator(Mulcan::g_vma_allocator);
     vkDestroySwapchainKHR(Mulcan::g_device, Mulcan::g_swapchain, nullptr);
     vkDestroyDevice(Mulcan::g_device, nullptr);
