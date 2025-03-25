@@ -5,6 +5,7 @@
 #include <vk_mem_alloc.h>
 #include <VkBootstrap.h>
 #include <vector>
+#include "mulcan_errors.hpp"
 
 namespace Mulcan
 {
@@ -22,7 +23,10 @@ namespace Mulcan
     static VkFormat g_swapchain_format;
     static VkExtent2D g_window_extend;
 
-    void initialize(VkSurfaceKHR surface);
+    MulcanResult initialize(VkSurfaceKHR surface);
+    void initializeCommands();
+    void initializeRenderPass();
+    void initializeFrameBuffer();
 
     void beginFrame();
     void endFrame();

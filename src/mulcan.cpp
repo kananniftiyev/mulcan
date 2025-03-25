@@ -1,6 +1,6 @@
 #include "mulcan.hpp"
 
-void Mulcan::initialize(VkSurfaceKHR surface)
+Mulcan::MulcanResult Mulcan::initialize(VkSurfaceKHR surface)
 {
     vkb::InstanceBuilder instance_builder;
     auto inst_ret = instance_builder.request_validation_layers()
@@ -54,7 +54,10 @@ void Mulcan::initialize(VkSurfaceKHR surface)
     allocator_create_info.device = Mulcan::g_device;
     allocator_create_info.instance = Mulcan::g_instance;
 
-    vmaCreateAllocator(&allocator_create_info, &Mulcan::g_vma_allocator);
+    auto res = vmaCreateAllocator(&allocator_create_info, &Mulcan::g_vma_allocator);
+    CHECK_VK(res, Mulcan::MulcanResult::M_VMA_ERROR);
+
+    return Mulcan::MulcanResult::M_SUCCESS;
 }
 
 void Mulcan::cleanup()
