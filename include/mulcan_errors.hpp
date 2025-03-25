@@ -8,7 +8,9 @@ namespace Mulcan
         M_INIT_ERROR = 2,
         M_UNKNOWN_ERROR = 3,
         M_SUCCESS = 4,
-        M_VMA_ERROR = 5
+        M_VMA_ERROR = 5,
+        M_COMMAND_INIT_ERROR = 6,
+
     };
 
     void errorResultToMessage();

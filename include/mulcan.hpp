@@ -6,6 +6,8 @@
 #include <VkBootstrap.h>
 #include <vector>
 #include "mulcan_errors.hpp"
+#include <array>
+#include "mulcan_infos.hpp"
 
 namespace Mulcan
 {
@@ -22,14 +24,31 @@ namespace Mulcan
     static VmaAllocator g_vma_allocator;
     static VkFormat g_swapchain_format;
     static VkExtent2D g_window_extend;
+    static bool vsync = true;
+    constexpr size_t FRAME_OVERLAP = 2;
+
+    struct FrameData
+    {
+        VkFence render_fence;
+        VkSemaphore swapchain_semaphore, render_semaphore;
+        VkCommandBuffer render_cmd;
+        VkCommandPool render_pool;
+    };
+
+    std::array<FrameData, FRAME_OVERLAP> frames;
 
     MulcanResult initialize(VkSurfaceKHR surface);
-    void initializeCommands();
-    void initializeRenderPass();
-    void initializeFrameBuffer();
+    MulcanResult initializeCommands();
+    MulcanResult initializeRenderPass();
+    MulcanResult initializeFrameBuffer();
 
     void beginFrame();
     void endFrame();
+
+    // Settigns functions
+    void setVsync(bool value);
+    void setFrameInFlight(size_t value);
+    void setImgui(bool value);
 
     void cleanup();
 }

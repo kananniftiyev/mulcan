@@ -33,10 +33,8 @@ Mulcan::MulcanResult Mulcan::initialize(VkSurfaceKHR surface)
     Mulcan::g_swapchain_format = VK_FORMAT_B8G8R8A8_UNORM;
 
     vkb::Swapchain vkb_swapchain = swapchainBuilder
-                                       //.use_default_format_selection()
                                        .set_desired_format(VkSurfaceFormatKHR{.format = Mulcan::g_swapchain_format, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
-                                       // use vsync present mode
-                                       .set_desired_present_mode(VK_PRESENT_MODE_FIFO_KHR)
+                                       .set_desired_present_mode((vsync) ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
                                        .set_desired_extent(800, 600)
                                        .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
                                        .build()
@@ -56,6 +54,28 @@ Mulcan::MulcanResult Mulcan::initialize(VkSurfaceKHR surface)
 
     auto res = vmaCreateAllocator(&allocator_create_info, &Mulcan::g_vma_allocator);
     CHECK_VK(res, Mulcan::MulcanResult::M_VMA_ERROR);
+
+    return Mulcan::MulcanResult::M_SUCCESS;
+}
+
+Mulcan::MulcanResult Mulcan::initializeCommands()
+{
+    auto fence_info = MulcanInfos::createFenceInfo();
+    auto semaphore_info = MulcanInfos::createSemaphoreInfo();
+
+    for (size_t i = 0; i < Mulcan::FRAME_OVERLAP; i++)
+    {
+        auto command_pool_info = MulcanInfos::createCommandPoolInfo(Mulcan::g_queue_family_index);
+        CHECK_VK(vkCreateCommandPool(Mulcan::g_device, &command_pool_info, nullptr, &frames[i].render_pool), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+
+        auto command_buffer_info = MulcanInfos::createCommandBufferAllocateInfo(frames[i].render_pool, 1);
+        CHECK_VK(vkAllocateCommandBuffers(Mulcan::g_device, &command_buffer_info, &frames[i].render_cmd), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+
+        CHECK_VK(vkCreateFence(Mulcan::g_device, &fence_info, nullptr, &frames[i].render_fence), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+
+        CHECK_VK(vkCreateSemaphore(Mulcan::g_device, &semaphore_info, nullptr, &frames[i].swapchain_semaphore), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+        CHECK_VK(vkCreateSemaphore(Mulcan::g_device, &semaphore_info, nullptr, &frames[i].render_semaphore), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+    }
 
     return Mulcan::MulcanResult::M_SUCCESS;
 }
