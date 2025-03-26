@@ -37,13 +37,13 @@ set_target_properties(VMA_STATIC PROPERTIES
 
 add_library (mulcan STATIC ${SRC_FILES} ${HEADER_FILES})
 
-target_include_directories(mulcan PUBLIC
+target_include_directories(mulcan PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   ${VMA_SOURCE_DIR}/include 
   ${VkBootstrap_SOURCE_DIR}/include
   )
 
-target_link_libraries(mulcan PUBLIC
+target_link_libraries(mulcan PRIVATE
   Vulkan
   glfw
   glm

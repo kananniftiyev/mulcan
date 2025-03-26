@@ -19,8 +19,18 @@ int main() {
 
 	glfwMakeContextCurrent(window);
 
-	Mulcan::initialize();
-	glfwCreateWindowSurface();
+	Mulcan::initialize(window);
+	Mulcan::initializeCommands();
+	Mulcan::initializeRenderPass();
+	Mulcan::initializeFrameBuffer();
+
+	while (!glfwWindowShouldClose(window))
+	{
+		Mulcan::beginFrame();
+		Mulcan::endFrame();
+
+		glfwPollEvents();
+	}
 
 	return 0;
 }
