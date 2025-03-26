@@ -1,13 +1,13 @@
 #pragma once
 
-#include <vulkan/vulkan.h>
+#include "mulcan_errors.hpp"
+#include "mulcan_infos.hpp"
+#include <array>
 #include <glm/glm.hpp>
+#include <vector>
 #include <vk_mem_alloc.h>
 #include <VkBootstrap.h>
-#include <vector>
-#include "mulcan_errors.hpp"
-#include <array>
-#include "mulcan_infos.hpp"
+#include <vulkan/vulkan.h>
 
 namespace Mulcan
 {
@@ -25,6 +25,7 @@ namespace Mulcan
 		VkCommandPool render_pool;
 	};
 
+	FrameData& getCurrFrame() { return frames[FRAME_OVERLAP % framecount]; }
 
 	// Init Functions
 	MulcanResult initialize(VkSurfaceKHR surface);

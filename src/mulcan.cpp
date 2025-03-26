@@ -20,6 +20,8 @@ namespace Mulcan {
 	VkRenderPass main_pass;
 
 	uint32_t framecount = 0;
+	uint32_t swapchain_image_index;
+
 
 	std::array<FrameData, FRAME_OVERLAP> frames;
 	std::vector<VkFramebuffer> g_main_frame_buffers;
@@ -173,6 +175,91 @@ Mulcan::MulcanResult Mulcan::initializeFrameBuffer()
 	}
 
 	return Mulcan::MulcanResult::M_SUCCESS;
+}
+
+void Mulcan::beginFrame()
+{
+	CHECK_VK_LOG(vkWaitForFences(Mulcan::g_device, 1, &Mulcan::getCurrFrame().render_fence, true, UINT64_MAX), "Wait fence error.");
+	CHECK_VK_LOG(vkResetFences(Mulcan::g_device, 1, &Mulcan::getCurrFrame().render_fence), "Reset Fence error");
+
+	CHECK_VK_LOG(vkAcquireNextImageKHR(Mulcan::g_device, Mulcan::g_swapchain, UINT64_MAX, Mulcan::getCurrFrame().swapchain_semaphore, nullptr, &Mulcan::swapchain_image_index), "Acquire swapchain image error");
+
+	CHECK_VK_LOG(vkResetCommandBuffer(Mulcan::getCurrFrame().render_cmd, 0), "Could not reset command buffer");
+
+	VkCommandBufferBeginInfo render_cmd_info{
+	.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+	.pNext = nullptr,
+	};
+
+	VkClearValue clear_value[1]{};
+
+	clear_value[0].color = { {0.3f, 0.5f, 0.7f, 1.0f} };
+
+	VkRenderPassBeginInfo main_renderpass_info{
+	.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+	.renderPass = Mulcan::main_pass,
+	.framebuffer = Mulcan::g_main_frame_buffers[swapchain_image_index],
+	.renderArea = {
+			.offset = {0, 0},
+			.extent = Mulcan::g_window_extend
+},
+	.clearValueCount = 1,
+	.pClearValues = &clear_value[0]
+	};
+
+	vkBeginCommandBuffer(Mulcan::getCurrFrame().render_cmd, &render_cmd_info);
+
+	vkCmdBeginRenderPass(Mulcan::getCurrFrame().render_cmd, &main_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
+
+	VkViewport viewport{
+	.width = Mulcan::g_window_extend.width,
+	.height = Mulcan::g_window_extend.height,
+	.minDepth = 0.0f,
+	.maxDepth = 1.0f,
+	};
+
+	VkRect2D scissor{
+		.offset = {0, 0},
+		.extent = Mulcan::g_window_extend
+	};
+
+	vkCmdSetViewport(Mulcan::getCurrFrame().render_cmd, 0, 1, &viewport);
+	vkCmdSetScissor(Mulcan::getCurrFrame().render_cmd, 0, 1, &scissor);
+
+}
+
+void Mulcan::endFrame()
+{
+
+	vkCmdEndRenderPass(Mulcan::getCurrFrame().render_cmd);
+	vkEndCommandBuffer(Mulcan::getCurrFrame().render_cmd);
+
+	VkPipelineStageFlags wait_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+
+
+	VkSubmitInfo submit_info{
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		.waitSemaphoreCount = 1,
+		.pWaitSemaphores = &Mulcan::getCurrFrame().swapchain_semaphore,
+		.pWaitDstStageMask = &wait_stage_mask,
+		.commandBufferCount = 1,
+		.pCommandBuffers = &Mulcan::getCurrFrame().render_cmd,
+		.signalSemaphoreCount = 1,
+		.pSignalSemaphores = &Mulcan::getCurrFrame().render_semaphore
+	};
+
+	CHECK_VK_LOG(vkQueueSubmit(Mulcan::g_queue, 1, &submit_info, Mulcan::getCurrFrame().render_fence), "Could not submit command buffer");
+
+	VkPresentInfoKHR present_info{
+		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+		.waitSemaphoreCount = 1,
+		.pWaitSemaphores = &Mulcan::getCurrFrame().render_semaphore,
+		.swapchainCount = 1,
+		.pSwapchains = &Mulcan::g_swapchain,
+		.pImageIndices = &Mulcan::swapchain_image_index
+	};
+
+	CHECK_VK_LOG(vkQueuePresentKHR(Mulcan::g_queue, &present_info), "Could not Present.");
 }
 
 void Mulcan::setVsync(bool value)

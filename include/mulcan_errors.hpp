@@ -1,5 +1,7 @@
 #pragma once
 
+#include <spdlog/spdlog.h>
+
 namespace Mulcan
 {
 	enum class MulcanResult : size_t
@@ -12,6 +14,9 @@ namespace Mulcan
 		M_COMMAND_INIT_ERROR = 6,
 		M_RENDERPASS_ERROR = 7,
 		M_FRAMEBUFFER_INIT_ERROR = 8,
+		M_SYNC_ERROR = 9,
+		M_QUEUE_ERROR = 10,
+
 	};
 
 	void errorResultToMessage();
@@ -21,4 +26,10 @@ namespace Mulcan
     if (res != VK_SUCCESS)        \
     {                             \
         return error_enum;        \
+    }
+
+#define CHECK_VK_LOG(res, message)                  \
+    if (res != VK_SUCCESS)                         \
+    {                                              \
+        spdlog::error("Vulkan error: {}: {}", #res, message); \
     }
