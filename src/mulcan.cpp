@@ -116,7 +116,7 @@ Mulcan::MulcanResult Mulcan::initializeCommands()
 Mulcan::MulcanResult Mulcan::initializeRenderPass()
 {
 	VkAttachmentDescription color_attachment{
-		.format = Mulcan::g_swapchain_format,
+		.format = VK_FORMAT_B8G8R8A8_UNORM,
 		.samples = VK_SAMPLE_COUNT_1_BIT,
 		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -143,7 +143,7 @@ Mulcan::MulcanResult Mulcan::initializeRenderPass()
 
 	VkRenderPassCreateInfo render_pass_info{
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-		.attachmentCount = 2,
+		.attachmentCount = 1,
 		.pAttachments = &color_attachment,
 		.subpassCount = 1,
 		.dependencyCount = 1,
@@ -217,8 +217,8 @@ void Mulcan::beginFrame()
 	vkCmdBeginRenderPass(Mulcan::getCurrFrame().render_cmd, &main_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
 
 	VkViewport viewport{
-	.width = Mulcan::g_window_extend.width,
-	.height = Mulcan::g_window_extend.height,
+	.width = static_cast<float>(Mulcan::g_window_extend.width),
+	.height = static_cast<float>(Mulcan::g_window_extend.height),
 	.minDepth = 0.0f,
 	.maxDepth = 1.0f,
 	};

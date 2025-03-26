@@ -6,8 +6,8 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <vector>
-#include <vk_mem_alloc.h>
 #include <VkBootstrap.h>
+#include <vma/vk_mem_alloc.h>
 #include <vulkan/vulkan.h>
 
 namespace Mulcan
