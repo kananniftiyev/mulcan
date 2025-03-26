@@ -10,7 +10,7 @@ file(GLOB_RECURSE HEADER_FILES ${CMAKE_CURRENT_SOURCE_DIR}/include/*.hpp)
 find_package(Vulkan REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(glm REQUIRED)
- find_package(spdlog CONFIG REQUIRED)
+find_package(spdlog CONFIG REQUIRED)
 
 include(FetchContent)
 

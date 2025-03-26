@@ -13,7 +13,7 @@ namespace Mulcan {
 	std::vector<VkImageView> g_swapchain_image_views;
 	VmaAllocator g_vma_allocator;
 	VkFormat g_swapchain_format;
-	VkExtent2D g_window_extend;
+	VkExtent2D g_window_extend{ .width = 800, .height = 600 };
 	bool g_vsync = true;
 	bool g_imgui = false;
 	constexpr size_t FRAME_OVERLAP = 2;
@@ -28,7 +28,7 @@ namespace Mulcan {
 
 }
 
-Mulcan::MulcanResult Mulcan::initialize(VkSurfaceKHR surface)
+Mulcan::MulcanResult Mulcan::initialize(GLFWwindow*& window)
 {
 	vkb::InstanceBuilder instance_builder;
 	auto inst_ret = instance_builder.request_validation_layers()
@@ -42,9 +42,11 @@ Mulcan::MulcanResult Mulcan::initialize(VkSurfaceKHR surface)
 	Mulcan::g_instance = vkb_inst.instance;
 	Mulcan::g_debug_messenger = vkb_inst.debug_messenger;
 
+	CHECK_VK(glfwCreateWindowSurface(Mulcan::g_instance, window, nullptr, &Mulcan::g_surface), Mulcan::MulcanResult::M_UNKNOWN_ERROR);
+
 	vkb::PhysicalDeviceSelector selector{ vkb_inst };
 	vkb::PhysicalDevice physical_device = selector
-		.set_minimum_version(1, 3)
+		.set_minimum_version(1, 2)
 		.set_surface(Mulcan::g_surface)
 		.select()
 		.value();

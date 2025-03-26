@@ -3,6 +3,7 @@
 #include "mulcan_errors.hpp"
 #include "mulcan_infos.hpp"
 #include <array>
+#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <vector>
 #include <vk_mem_alloc.h>
@@ -28,7 +29,7 @@ namespace Mulcan
 	FrameData& getCurrFrame() { return frames[FRAME_OVERLAP % framecount]; }
 
 	// Init Functions
-	MulcanResult initialize(VkSurfaceKHR surface);
+	MulcanResult initialize(GLFWwindow*& window);
 	MulcanResult initializeCommands();
 	MulcanResult initializeRenderPass();
 	MulcanResult initializeFrameBuffer();
