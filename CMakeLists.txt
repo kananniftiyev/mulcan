@@ -23,11 +23,9 @@ target_include_directories(mulcan PRIVATE
   )
 
 target_link_libraries(mulcan PRIVATE
-  Vulkan
+  Vulkan::Vulkan
   glfw
-  glm
-  VMA
-  vk-bootstrap
+  glm::glm
   GPUOpen::VulkanMemoryAllocator
   spdlog::spdlog
   vk-bootstrap::vk-bootstrap 
