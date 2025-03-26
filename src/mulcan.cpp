@@ -27,7 +27,7 @@ namespace Mulcan {
 	std::array<FrameData, FRAME_OVERLAP> frames;
 	std::vector<VkFramebuffer> g_main_frame_buffers;
 
-	FrameData& getCurrFrame() { return frames[FRAME_OVERLAP % framecount]; }
+	FrameData& getCurrFrame() { return frames[framecount % FRAME_OVERLAP]; }
 
 }
 
@@ -77,6 +77,8 @@ Mulcan::MulcanResult Mulcan::initialize(GLFWwindow*& window)
 	Mulcan::g_swapchain = vkb_swapchain.swapchain;
 	Mulcan::g_swapchain_images = vkb_swapchain.get_images().value();
 	Mulcan::g_swapchain_image_views = vkb_swapchain.get_image_views().value();
+	Mulcan::g_queue = vkb_device.get_queue(vkb::QueueType::graphics).value();
+	Mulcan::g_queue_family_index = vkb_device.get_queue_index(vkb::QueueType::graphics).value();
 
 	VmaAllocatorCreateInfo allocator_create_info = {};
 	allocator_create_info.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
@@ -146,6 +148,7 @@ Mulcan::MulcanResult Mulcan::initializeRenderPass()
 		.attachmentCount = 1,
 		.pAttachments = &color_attachment,
 		.subpassCount = 1,
+		.pSubpasses = &subpass,
 		.dependencyCount = 1,
 		.pDependencies = &dependency,
 	};
@@ -265,6 +268,9 @@ void Mulcan::endFrame()
 	};
 
 	CHECK_VK_LOG(vkQueuePresentKHR(Mulcan::g_queue, &present_info), "Could not Present.");
+	
+	Mulcan::framecount++;
+
 }
 
 void Mulcan::setVsync(bool value)
