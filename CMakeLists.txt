@@ -11,6 +11,7 @@ find_package(Vulkan REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(glm REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
+ find_package(VulkanMemoryAllocator CONFIG REQUIRED)
 
 include(FetchContent)
 
@@ -20,20 +21,11 @@ FetchContent_Declare(
   GIT_TAG        main
 )
 
-FetchContent_Declare(
-  VMA
-  GIT_REPOSITORY https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
-  GIT_TAG        master
-)
 
 
-FetchContent_MakeAvailable(VMA VkBootstrap)
+FetchContent_MakeAvailable(VkBootstrap)
 
-add_library(VMA_STATIC STATIC IMPORTED)
-set_target_properties(VMA_STATIC PROPERTIES
-  IMPORTED_LOCATION "${VMA_BINARY_DIR}/VMA" # Adjust based on your build output
-  INTERFACE_INCLUDE_DIRECTORIES "${VMA_SOURCE_DIR}/include"
-)
+
 
 add_library (mulcan STATIC ${SRC_FILES} ${HEADER_FILES})
 
@@ -49,6 +41,6 @@ target_link_libraries(mulcan PRIVATE
   glm
   VMA
   vk-bootstrap
-  VMA_STATIC
+  GPUOpen::VulkanMemoryAllocator
   spdlog::spdlog
 )
