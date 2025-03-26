@@ -11,28 +11,15 @@ find_package(Vulkan REQUIRED)
 find_package(glfw3 REQUIRED)
 find_package(glm REQUIRED)
 find_package(spdlog CONFIG REQUIRED)
- find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+find_package(VulkanMemoryAllocator CONFIG REQUIRED)
+find_package(vk-bootstrap CONFIG REQUIRED)
 
 include(FetchContent)
-
-FetchContent_Declare(
-  VkBootstrap
-  GIT_REPOSITORY https://github.com/charles-lunarg/vk-bootstrap.git
-  GIT_TAG        main
-)
-
-
-
-FetchContent_MakeAvailable(VkBootstrap)
-
-
 
 add_library (mulcan STATIC ${SRC_FILES} ${HEADER_FILES})
 
 target_include_directories(mulcan PRIVATE
   ${CMAKE_CURRENT_SOURCE_DIR}/include
-  ${VMA_SOURCE_DIR}/include 
-  ${VkBootstrap_SOURCE_DIR}/include
   )
 
 target_link_libraries(mulcan PRIVATE
@@ -43,4 +30,6 @@ target_link_libraries(mulcan PRIVATE
   vk-bootstrap
   GPUOpen::VulkanMemoryAllocator
   spdlog::spdlog
+  vk-bootstrap::vk-bootstrap 
+  vk-bootstrap::vk-bootstrap-compiler-warnings
 )

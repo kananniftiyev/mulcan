@@ -27,6 +27,8 @@ namespace Mulcan {
 	std::array<FrameData, FRAME_OVERLAP> frames;
 	std::vector<VkFramebuffer> g_main_frame_buffers;
 
+	FrameData& getCurrFrame() { return frames[FRAME_OVERLAP % framecount]; }
+
 }
 
 Mulcan::MulcanResult Mulcan::initialize(GLFWwindow*& window)

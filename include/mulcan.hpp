@@ -26,7 +26,6 @@ namespace Mulcan
 		VkCommandPool render_pool;
 	};
 
-	FrameData& getCurrFrame() { return frames[FRAME_OVERLAP % framecount]; }
 
 	// Init Functions
 	MulcanResult initialize(GLFWwindow*& window);

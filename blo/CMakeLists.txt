@@ -25,8 +25,10 @@ add_executable(main main.cpp)
 target_link_libraries(main PUBLIC mulcan Vulkan
   glfw
   glm)
+
+message(STATUS "Include directories for mulcan: ${mulcan_SOURCE_DIR}/include")
 target_include_directories(mulcan PUBLIC 
-    "${CMAKE_CURRENT_SOURCE_DIR}/include"
+   ${mulcan_SOURCE_DIR}/include
 )
 
 
