@@ -201,7 +201,7 @@ void Mulcan::beginFrame()
 
 	VkClearValue clear_value[1]{};
 
-	clear_value[0].color = { {0.3f, 0.5f, 0.7f, 1.0f} };
+	clear_value[0].color = { {50 / 255.0f, 60 / 255.0f, 68 / 255.0f, 1.0f} };
 
 	VkRenderPassBeginInfo main_renderpass_info{
 	.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -268,7 +268,7 @@ void Mulcan::endFrame()
 	};
 
 	CHECK_VK_LOG(vkQueuePresentKHR(Mulcan::g_queue, &present_info), "Could not Present.");
-	
+
 	Mulcan::framecount++;
 
 }
@@ -285,6 +285,93 @@ void Mulcan::setFrameInFlight(FrameInFlight value)
 void Mulcan::setImgui(bool value)
 {
 	Mulcan::g_imgui = value;
+}
+
+[[nodiscard]]
+VkPipelineLayout Mulcan::buildPipelineLayout(VkPushConstantRange range, uint32_t range_count, uint32_t layout_count, VkDescriptorSetLayout layout)
+{
+	VkPipelineLayoutCreateInfo info{};
+	info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
+	info.pushConstantRangeCount = range_count;
+	info.pPushConstantRanges = &range;
+	info.setLayoutCount = layout_count;
+	info.pSetLayouts = &layout;
+
+	VkPipelineLayout pipeline_layout;
+	CHECK_VK_LOG(vkCreatePipelineLayout(Mulcan::g_device, &info, nullptr, &pipeline_layout), "Could not create pipeline layout.");
+
+	return pipeline_layout;
+}
+
+// TODO: Caching support.
+[[nodiscard]]
+VkPipeline Mulcan::buildPipeline(VkPipelineLayout& layout, VkRenderPass& pass)
+{
+	std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages;
+
+	VkVertexInputBindingDescription vertex_input_binding{};
+	vertex_input_binding.binding = 0;
+	vertex_input_binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+	vertex_input_binding.stride = sizeof(Mulcan::Vertex);
+
+	std::array<VkVertexInputAttributeDescription, 2> input_attributes;
+
+	// position binding
+	input_attributes[0].binding = 0;
+	input_attributes[0].location = 0;
+	input_attributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+	input_attributes[0].offset = offsetof(Mulcan::Vertex, Mulcan::Vertex::position);
+
+	// color bindigs
+	input_attributes[1].binding = 0;
+	input_attributes[1].location = 1;
+	input_attributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+	input_attributes[1].offset = offsetof(Mulcan::Vertex, Mulcan::Vertex::color);
+
+	VkPipelineVertexInputStateCreateInfo pipeline_vertex_state{};
+	pipeline_vertex_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	pipeline_vertex_state.vertexBindingDescriptionCount = 1;
+	pipeline_vertex_state.vertexAttributeDescriptionCount = 2;
+	pipeline_vertex_state.pVertexBindingDescriptions = &vertex_input_binding;
+	pipeline_vertex_state.pVertexAttributeDescriptions = input_attributes.data();
+
+	auto input_assembly_state = MulcanInfos::createInputAssemblyStateInfo();
+
+	VkPipelineViewportStateCreateInfo vp_info{};
+	vp_info.sType = VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO;
+	vp_info.scissorCount = 1;
+	vp_info.viewportCount = 1;
+
+	auto raster_state_info = MulcanInfos::createRasterizationStateInfo();
+
+	auto multisample_state_info = MulcanInfos::createMultisampleStateInfo(VK_FALSE, VK_SAMPLE_COUNT_1_BIT);
+
+	std::vector<VkDynamicState> dynamicStateEnables;
+	dynamicStateEnables.push_back(VK_DYNAMIC_STATE_VIEWPORT);
+	dynamicStateEnables.push_back(VK_DYNAMIC_STATE_SCISSOR);
+	VkPipelineDynamicStateCreateInfo dynamicStateCI{};
+	dynamicStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
+	dynamicStateCI.pDynamicStates = dynamicStateEnables.data();
+	dynamicStateCI.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.size());
+
+
+	VkGraphicsPipelineCreateInfo info{};
+	info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
+	info.stageCount = static_cast<uint32_t>(shader_stages.size());
+	info.pStages = shader_stages.data();
+	info.pVertexInputState = &pipeline_vertex_state;
+	info.pInputAssemblyState = &input_assembly_state;
+	info.pViewportState = &vp_info;
+	info.pRasterizationState = &raster_state_info;
+	info.pMultisampleState = &multisample_state_info;
+	info.pDynamicState = &dynamicStateCI;
+	info.layout = layout;
+	info.renderPass = pass;
+
+	VkPipeline pipeline;
+	CHECK_VK_LOG(vkCreateGraphicsPipelines(Mulcan::g_device, nullptr, 1, &info, nullptr, &pipeline), "Could not create pipeline.");
+
+	return pipeline;
 }
 
 void Mulcan::cleanup()

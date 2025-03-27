@@ -32,4 +32,5 @@ namespace Mulcan
     if (res != VK_SUCCESS)                         \
     {                                              \
         spdlog::error("Vulkan error: {}: {}", #res, message); \
+		abort(); \
     }
