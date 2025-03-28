@@ -70,7 +70,7 @@ namespace Mulcan
 	// Helper funcs
 
 	VkPipelineLayout buildPipelineLayout(VkPushConstantRange range, uint32_t range_count, uint32_t layout_count, VkDescriptorSetLayout layout);
-	VkPipeline buildPipeline(VkPipelineLayout& layout, VkRenderPass& pass);
+	VkPipeline buildPipeline(VkPipelineLayout& layout, VkRenderPass& pass, VkShaderModule vertex, VkShaderModule frag);
 
 	template <typename T>
 	TransferBuffer createTransferBuffer(std::vector<T> data, VkBufferUsageFlags flag) {
@@ -108,8 +108,6 @@ namespace Mulcan
 		AllocatedBuffer gpu_buffer;
 
 		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::g_vma_allocator, &gpu_buffer_info, &vma_alloc_info, &gpu_buffer.buffer, &gpu_buffer.allocation, nullptr), "Could not create gpu buffer");
-
-
 
 		return { staging_buffer, gpu_buffer, size };
 	}
