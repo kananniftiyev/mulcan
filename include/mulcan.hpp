@@ -74,11 +74,13 @@ namespace Mulcan
 
 	template <typename T>
 	TransferBuffer createTransferBuffer(std::vector<T> data, VkBufferUsageFlags flag) {
-
+		
+		const auto size = sizeof(T) * data.size();
+		
 		// CPU side
 		VkBufferCreateInfo buffer_info{};
 		buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		buffer_info.size = T * data.size();
+		buffer_info.size = size;
 		buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
 
 		VmaAllocationCreateInfo vma_alloc_info{};
@@ -91,14 +93,14 @@ namespace Mulcan
 		void* s_data;
 		vmaMapMemory(Mulcan::g_vma_allocator, staging_buffer.allocation, &s_data);
 
-		memcpy(s_data, data.data(), data.size() * sizeof(T));
+		memcpy(s_data, data.data(), size);
 
 		vmaUnmapMemory(Mulcan::g_vma_allocator, staging_buffer.allocation);
 
 		// GPU side
 		VkBufferCreateInfo gpu_buffer_info{};
 		gpu_buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-		gpu_buffer_info.size = T * data.size();
+		gpu_buffer_info.size = size;
 		gpu_buffer_info.usage = flag | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
 		vma_alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -109,7 +111,7 @@ namespace Mulcan
 
 
 
-		return { staging_buffer, gpu_buffer, data.size() * sizeof(T) };
+		return { staging_buffer, gpu_buffer, size };
 	}
 
 
