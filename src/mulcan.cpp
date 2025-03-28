@@ -366,18 +366,18 @@ VkPipelineLayout Mulcan::buildPipelineLayout(VkPushConstantRange range, uint32_t
 VkPipeline Mulcan::buildPipeline(VkPipelineLayout& layout, VkRenderPass& pass, VkShaderModule vertex, VkShaderModule frag)
 {
 	std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages;
-	
+
 	shader_stages[0].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	shader_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
 	shader_stages[0].module = vertex;
-	shader_stages[0].pName = main
-	static_assert(shader_stages[0].module != VK_NULL_HANDLE, "Shader module must not be VK_NULL_HANDLE.");
-	
+	shader_stages[0].pName = "main";
+	assert(shader_stages[0].module != VK_NULL_HANDLE, "Shader module must not be VK_NULL_HANDLE.");
+
 	shader_stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	shader_stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 	shader_stages[1].module = vertex;
-	shader_stages[1].pName = main
-	static_assert(shader_stages[1].module != VK_NULL_HANDLE, "Shader module must not be VK_NULL_HANDLE.");
+	shader_stages[1].pName = "main";
+	assert(shader_stages[1].module != VK_NULL_HANDLE, "Shader module must not be VK_NULL_HANDLE.");
 
 	VkVertexInputBindingDescription vertex_input_binding{};
 	vertex_input_binding.binding = 0;

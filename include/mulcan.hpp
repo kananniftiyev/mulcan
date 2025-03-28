@@ -49,6 +49,8 @@ namespace Mulcan
 		size_t buffer_size;
 	};
 
+	extern VmaAllocator g_vma_allocator;
+
 
 	// Init Functions
 	MulcanResult initialize(GLFWwindow*& window);
@@ -74,9 +76,9 @@ namespace Mulcan
 
 	template <typename T>
 	TransferBuffer createTransferBuffer(std::vector<T> data, VkBufferUsageFlags flag) {
-		
+
 		const auto size = sizeof(T) * data.size();
-		
+
 		// CPU side
 		VkBufferCreateInfo buffer_info{};
 		buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
