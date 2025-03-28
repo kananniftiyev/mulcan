@@ -27,10 +27,26 @@ namespace Mulcan
 		VkCommandPool render_pool;
 	};
 
+	struct ImmediateSubmitData {
+		VkFence fence;
+		VkCommandPool pool;
+		VkCommandBuffer cmd;
+	};
+
 	struct Vertex {
 		glm::vec3 position;
 		glm::vec3 color;
 		// glm::vec2 texCoords;
+	};
+
+	struct AllocatedBuffer {
+		VkBuffer buffer;
+		VmaAllocation allocation;
+	};
+
+	struct TransferBuffer {
+		VkBuffer src, dst;
+		size_t buffer_size;
 	};
 
 
@@ -39,8 +55,10 @@ namespace Mulcan
 	MulcanResult initializeCommands();
 	MulcanResult initializeRenderPass();
 	MulcanResult initializeFrameBuffer();
+	MulcanResult initializeTransferBuffer();
 
 	// Render Functions
+	void transferBufferCommand(TransferBuffer buffer);
 	void beginFrame();
 	void endFrame();
 
@@ -53,6 +71,46 @@ namespace Mulcan
 
 	VkPipelineLayout buildPipelineLayout(VkPushConstantRange range, uint32_t range_count, uint32_t layout_count, VkDescriptorSetLayout layout);
 	VkPipeline buildPipeline(VkPipelineLayout& layout, VkRenderPass& pass);
+
+	template <typename T>
+	TransferBuffer createTransferBuffer(std::vector<T> data, VkBufferUsageFlags flag) {
+
+		// CPU side
+		VkBufferCreateInfo buffer_info{};
+		buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		buffer_info.size = T * data.size();
+		buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
+
+		VmaAllocationCreateInfo vma_alloc_info{};
+		vma_alloc_info.usage = VMA_MEMORY_USAGE_CPU_ONLY;
+
+		AllocatedBuffer staging_buffer;
+
+		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::g_vma_allocator, &buffer_info, &vma_alloc_info, &staging_buffer.buffer, &staging_buffer.allocation, nullptr), "Could not create transfer Buffer");
+
+		void* s_data;
+		vmaMapMemory(Mulcan::g_vma_allocator, staging_buffer.allocation, &s_data);
+
+		memcpy(s_data, data.data(), data.size() * sizeof(T));
+
+		vmaUnmapMemory(Mulcan::g_vma_allocator, staging_buffer.allocation);
+
+		// GPU side
+		VkBufferCreateInfo gpu_buffer_info{};
+		gpu_buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+		gpu_buffer_info.size = T * data.size();
+		gpu_buffer_info.usage = flag | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+
+		vma_alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+
+		AllocatedBuffer gpu_buffer;
+
+		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::g_vma_allocator, &gpu_buffer_info, &vma_alloc_info, &gpu_buffer.buffer, &gpu_buffer.allocation, nullptr), "Could not create gpu buffer");
+
+
+
+		return { staging_buffer, gpu_buffer, data.size() * sizeof(T) };
+	}
 
 
 	void cleanup();

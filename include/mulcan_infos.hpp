@@ -11,4 +11,5 @@ namespace MulcanInfos
 	VkPipelineRasterizationStateCreateInfo createRasterizationStateInfo();
 	VkPipelineMultisampleStateCreateInfo createMultisampleStateInfo(VkBool32 sample_shading, VkSampleCountFlagBits sample_count);
 	VkPipelineInputAssemblyStateCreateInfo createInputAssemblyStateInfo();
+	VkCommandBufferBeginInfo createCommandBufferBeginInfo(VkCommandBufferUsageFlags flag);
 } // namespace MulcanInfos

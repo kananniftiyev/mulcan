@@ -17,8 +17,9 @@ namespace Mulcan {
 	VkExtent2D g_window_extend{ .width = 800, .height = 600 };
 	bool g_vsync = true;
 	bool g_imgui = false;
-	size_t FRAME_OVERLAP = 2;
+	constexpr size_t FRAME_OVERLAP = 2;
 	VkRenderPass main_pass;
+	ImmediateSubmitData buffer_transfer;
 
 	uint32_t framecount = 0;
 	uint32_t swapchain_image_index;
@@ -185,6 +186,55 @@ Mulcan::MulcanResult Mulcan::initializeFrameBuffer()
 	return Mulcan::MulcanResult::M_SUCCESS;
 }
 
+Mulcan::MulcanResult Mulcan::initializeTransferBuffer()
+{
+	auto fence_info = MulcanInfos::createFenceInfo();
+	CHECK_VK(vkCreateFence(Mulcan::g_device, &fence_info, nullptr, &buffer_transfer.fence), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+	auto command_pool_info = MulcanInfos::createCommandPoolInfo(Mulcan::g_queue_family_index);
+	CHECK_VK(vkCreateCommandPool(Mulcan::g_device, &command_pool_info, nullptr, &buffer_transfer.pool), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+
+	auto command_buffer_info = MulcanInfos::createCommandBufferAllocateInfo(buffer_transfer.pool, 1);
+	CHECK_VK(vkAllocateCommandBuffers(Mulcan::g_device, &command_buffer_info, &buffer_transfer.cmd), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+
+	return Mulcan::MulcanResult::M_SUCCESS;
+}
+
+void Mulcan::transferBufferCommand(TransferBuffer buffer)
+{
+	auto cmd = Mulcan::buffer_transfer.cmd;
+
+	auto cmd_info = MulcanInfos::createCommandBufferBeginInfo(0);
+
+	CHECK_VK_LOG(vkBeginCommandBuffer(cmd, &cmd_info), "Could not start transfer command");
+
+	VkBufferCopy copy;
+	copy.dstOffset = 0;
+	copy.srcOffset = 0;
+	copy.size = buffer.buffer_size;
+	vkCmdCopyBuffer(cmd, buffer.src, buffer.dst, 1, &copy);
+
+	CHECK_VK_LOG(vkEndCommandBuffer(cmd), "Could not end command buffer");
+
+	VkSubmitInfo info = {};
+	info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+	info.pNext = nullptr;
+
+	info.waitSemaphoreCount = 0;
+	info.pWaitSemaphores = nullptr;
+	info.pWaitDstStageMask = nullptr;
+	info.commandBufferCount = 1;
+	info.pCommandBuffers = &cmd;
+	info.signalSemaphoreCount = 0;
+	info.pSignalSemaphores = nullptr;
+
+	CHECK_VK_LOG(vkQueueSubmit(Mulcan::g_queue, 1, &info, Mulcan::buffer_transfer.fence), "Could not submit transfer command");
+
+	vkWaitForFences(Mulcan::g_device, 1, &Mulcan::buffer_transfer.fence, true, UINT32_MAX);
+	vkResetFences(Mulcan::g_device, 1, &Mulcan::buffer_transfer.fence);
+
+	vkResetCommandPool(Mulcan::g_device, Mulcan::buffer_transfer.pool, 0);
+}
+
 void Mulcan::beginFrame()
 {
 	CHECK_VK_LOG(vkWaitForFences(Mulcan::g_device, 1, &Mulcan::getCurrFrame().render_fence, true, UINT64_MAX), "Wait fence error.");
@@ -194,10 +244,7 @@ void Mulcan::beginFrame()
 
 	CHECK_VK_LOG(vkResetCommandBuffer(Mulcan::getCurrFrame().render_cmd, 0), "Could not reset command buffer");
 
-	VkCommandBufferBeginInfo render_cmd_info{
-	.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-	.pNext = nullptr,
-	};
+	auto render_cmd_info = MulcanInfos::createCommandBufferBeginInfo(0);
 
 	VkClearValue clear_value[1]{};
 
@@ -280,7 +327,7 @@ void Mulcan::setVsync(bool value)
 
 void Mulcan::setFrameInFlight(FrameInFlight value)
 {
-	switch (value)
+	/*switch (value)
 	{
 	case Mulcan::FrameInFlight::DOUBLE_BUFFERING:
 		FRAME_OVERLAP = 2;
@@ -290,7 +337,7 @@ void Mulcan::setFrameInFlight(FrameInFlight value)
 		break;
 	default:
 		break;
-	}
+	}*/
 }
 
 void Mulcan::setImgui(bool value)
@@ -384,6 +431,7 @@ VkPipeline Mulcan::buildPipeline(VkPipelineLayout& layout, VkRenderPass& pass)
 
 	return pipeline;
 }
+
 
 void Mulcan::cleanup()
 {

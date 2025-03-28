@@ -79,3 +79,11 @@ VkPipelineInputAssemblyStateCreateInfo MulcanInfos::createInputAssemblyStateInfo
 	return input_assembly_state;
 }
 
+VkCommandBufferBeginInfo MulcanInfos::createCommandBufferBeginInfo(VkCommandBufferUsageFlags flag)
+{
+	return VkCommandBufferBeginInfo{
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		.flags = flag,
+	};
+}
+
