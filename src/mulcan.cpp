@@ -81,6 +81,8 @@ Mulcan::MulcanResult Mulcan::initialize(GLFWwindow*& window)
 	Mulcan::g_queue = vkb_device.get_queue(vkb::QueueType::graphics).value();
 	Mulcan::g_queue_family_index = vkb_device.get_queue_index(vkb::QueueType::graphics).value();
 
+	// TODO: Depth buffer
+
 	VmaAllocatorCreateInfo allocator_create_info = {};
 	allocator_create_info.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
 	allocator_create_info.vulkanApiVersion = VK_API_VERSION_1_2;
@@ -116,6 +118,7 @@ Mulcan::MulcanResult Mulcan::initializeCommands()
 	return Mulcan::MulcanResult::M_SUCCESS;
 }
 
+// TODO: depth attachment
 Mulcan::MulcanResult Mulcan::initializeRenderPass()
 {
 	VkAttachmentDescription color_attachment{
@@ -199,6 +202,7 @@ Mulcan::MulcanResult Mulcan::initializeTransferBuffer()
 	return Mulcan::MulcanResult::M_SUCCESS;
 }
 
+// TODO: Better way to get our dst buffer.
 void Mulcan::transferBufferCommand(TransferBuffer buffer)
 {
 	auto cmd = Mulcan::buffer_transfer.cmd;
@@ -234,6 +238,7 @@ void Mulcan::transferBufferCommand(TransferBuffer buffer)
 
 	vkResetCommandPool(Mulcan::g_device, Mulcan::buffer_transfer.pool, 0);
 }
+
 
 void Mulcan::beginFrame()
 {
@@ -283,6 +288,7 @@ void Mulcan::beginFrame()
 
 }
 
+// TODO: Refactor to infos.
 void Mulcan::endFrame()
 {
 

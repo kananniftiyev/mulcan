@@ -39,6 +39,7 @@ namespace Mulcan
 		// glm::vec2 texCoords;
 	};
 
+	// TODO: Rename
 	struct AllocatedBuffer {
 		VkBuffer buffer;
 		VmaAllocation allocation;
@@ -52,6 +53,7 @@ namespace Mulcan
 	extern VmaAllocator g_vma_allocator;
 
 
+	// TODO: one func for all.
 	// Init Functions
 	MulcanResult initialize(GLFWwindow*& window);
 	MulcanResult initializeCommands();
@@ -60,7 +62,7 @@ namespace Mulcan
 	MulcanResult initializeTransferBuffer();
 
 	// Render Functions
-	void transferBufferCommand(TransferBuffer buffer);
+	void transferBufferCommand(TransferBuffer buffer); // TODO: Make that make all commands once instead of many submits.
 	void beginFrame();
 	void endFrame();
 
@@ -74,6 +76,7 @@ namespace Mulcan
 	VkPipelineLayout buildPipelineLayout(VkPushConstantRange range, uint32_t range_count, uint32_t layout_count, VkDescriptorSetLayout layout);
 	VkPipeline buildPipeline(VkPipelineLayout& layout, VkRenderPass& pass, VkShaderModule vertex, VkShaderModule frag);
 
+	// TODO: Remove template.
 	template <typename T>
 	TransferBuffer createTransferBuffer(std::vector<T> data, VkBufferUsageFlags flag) {
 
