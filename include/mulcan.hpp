@@ -4,9 +4,11 @@
 #include "mulcan_infos.hpp"
 #include "utils/shaders.hpp"
 #include <array>
+#include <fstream>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
-#include <glm/glm.hpp>
+#include <iostream>
+#include <string>
 #include <vector>
 #include <VkBootstrap.h>
 #include <vma/vk_mem_alloc.h>
@@ -115,12 +117,19 @@ namespace Mulcan
 
 		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::g_vma_allocator, &gpu_buffer_info, &vma_alloc_info, &gpu_buffer.buffer, &gpu_buffer.allocation, nullptr), "Could not create gpu buffer");
 
-		return { staging_buffer, gpu_buffer, size };
+		TransferBuffer tb{};
+		tb.src = staging_buffer.buffer;
+		tb.dst = gpu_buffer.buffer;
+		tb.buffer_size = size;
+		return tb;
 	}
 
 	// Getter funcs
 	VkCommandBuffer getCurrCommand();
 	VkRenderPass getMainPass();
+
+	bool loadShaderModule(const char* filePath, VkShaderModule* out_shader_module);
+
 
 	void cleanup();
 }
