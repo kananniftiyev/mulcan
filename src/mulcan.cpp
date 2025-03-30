@@ -1,6 +1,8 @@
 #define VMA_IMPLEMENTATION
 #include "mulcan.hpp"
 
+// TODO: recreate the swapchain func.
+// TODO: better naming
 namespace Mulcan {
 	VkDevice g_device;
 	VkInstance g_instance;
@@ -119,6 +121,7 @@ Mulcan::MulcanResult Mulcan::initializeCommands()
 }
 
 // TODO: depth attachment
+// TODO: abstract renderpass creation.
 Mulcan::MulcanResult Mulcan::initializeRenderPass()
 {
 	VkAttachmentDescription color_attachment{
@@ -218,6 +221,9 @@ void Mulcan::transferBufferCommand(TransferBuffer& buffer)
 	vkCmdCopyBuffer(cmd, buffer.src, buffer.dst, 1, &copy);
 
 	CHECK_VK_LOG(vkEndCommandBuffer(cmd), "Could not end command buffer");
+	
+	vkResetFences(Mulcan::g_device, 1, &Mulcan::buffer_transfer.fence);
+
 
 	VkSubmitInfo info = {};
 	info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -234,7 +240,6 @@ void Mulcan::transferBufferCommand(TransferBuffer& buffer)
 	CHECK_VK_LOG(vkQueueSubmit(Mulcan::g_queue, 1, &info, Mulcan::buffer_transfer.fence), "Could not submit transfer command");
 
 	vkWaitForFences(Mulcan::g_device, 1, &Mulcan::buffer_transfer.fence, true, UINT32_MAX);
-	vkResetFences(Mulcan::g_device, 1, &Mulcan::buffer_transfer.fence);
 
 	vkResetCommandPool(Mulcan::g_device, Mulcan::buffer_transfer.pool, 0);
 }
@@ -368,6 +373,7 @@ VkPipelineLayout Mulcan::buildPipelineLayout(VkPushConstantRange range, uint32_t
 }
 
 // TODO: Caching support.
+// TODO: Seperate shader stages.
 [[nodiscard]]
 VkPipeline Mulcan::buildPipeline(VkPipelineLayout& layout, VkRenderPass& pass, VkShaderModule vertex, VkShaderModule frag)
 {
@@ -377,13 +383,17 @@ VkPipeline Mulcan::buildPipeline(VkPipelineLayout& layout, VkRenderPass& pass, V
 	shader_stages[0].stage = VK_SHADER_STAGE_VERTEX_BIT;
 	shader_stages[0].module = vertex;
 	shader_stages[0].pName = "main";
-	assert(shader_stages[0].module != VK_NULL_HANDLE, "Shader module must not be VK_NULL_HANDLE.");
+	shader_stages[0].pNext = nullptr;
+	shader_stages[0].flags = 0;
+	shader_stages[0].pSpecializationInfo = nullptr;
 
 	shader_stages[1].sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
 	shader_stages[1].stage = VK_SHADER_STAGE_FRAGMENT_BIT;
-	shader_stages[1].module = vertex;
+	shader_stages[1].module = frag;
 	shader_stages[1].pName = "main";
-	assert(shader_stages[1].module != VK_NULL_HANDLE, "Shader module must not be VK_NULL_HANDLE.");
+	shader_stages[1].pNext = nullptr;
+	shader_stages[1].flags = 0;
+	shader_stages[1].pSpecializationInfo = nullptr;
 
 	VkVertexInputBindingDescription vertex_input_binding{};
 	vertex_input_binding.binding = 0;
@@ -429,6 +439,14 @@ VkPipeline Mulcan::buildPipeline(VkPipelineLayout& layout, VkRenderPass& pass, V
 	dynamicStateCI.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 	dynamicStateCI.pDynamicStates = dynamicStateEnables.data();
 	dynamicStateCI.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.size());
+	
+	VkPipelineColorBlendAttachmentState blend_attachment_state{};
+	blend_attachment_state.colorWriteMask = 0xf;
+	blend_attachment_state.blendEnable = VK_FALSE;
+	VkPipelineColorBlendStateCreateInfo color_blend_state{};
+	color_blend_state.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO;
+	color_blend_state.attachmentCount = 1;
+	color_blend_state.pAttachments = &blend_attachment_state;
 
 
 	VkGraphicsPipelineCreateInfo info{};
@@ -443,6 +461,8 @@ VkPipeline Mulcan::buildPipeline(VkPipelineLayout& layout, VkRenderPass& pass, V
 	info.pDynamicState = &dynamicStateCI;
 	info.layout = layout;
 	info.renderPass = pass;
+	info.pNext = nullptr;
+	info.pColorBlendState = &color_blend_state;
 
 	VkPipeline pipeline;
 	CHECK_VK_LOG(vkCreateGraphicsPipelines(Mulcan::g_device, nullptr, 1, &info, nullptr, &pipeline), "Could not create pipeline.");
