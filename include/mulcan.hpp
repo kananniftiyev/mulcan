@@ -118,6 +118,9 @@ namespace Mulcan
 		return { staging_buffer, gpu_buffer, size };
 	}
 
+	// Getter funcs
+	VkCommandBuffer getCurrCommand();
+	VkRenderPass getMainPass();
 
 	void cleanup();
 }

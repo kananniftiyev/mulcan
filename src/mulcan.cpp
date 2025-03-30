@@ -451,6 +451,16 @@ VkPipeline Mulcan::buildPipeline(VkPipelineLayout& layout, VkRenderPass& pass, V
 }
 
 
+VkCommandBuffer Mulcan::getCurrCommand()
+{
+	return Mulcan::getCurrFrame().render_cmd;
+}
+
+VkRenderPass Mulcan::getMainPass()
+{
+	return Mulcan::main_pass;
+}
+
 void Mulcan::cleanup()
 {
 	vkDestroyRenderPass(Mulcan::g_device, Mulcan::main_pass, nullptr);
