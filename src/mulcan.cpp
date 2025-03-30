@@ -203,7 +203,7 @@ Mulcan::MulcanResult Mulcan::initializeTransferBuffer()
 }
 
 // TODO: Better way to get our dst buffer.
-void Mulcan::transferBufferCommand(TransferBuffer buffer)
+void Mulcan::transferBufferCommand(TransferBuffer& buffer)
 {
 	auto cmd = Mulcan::buffer_transfer.cmd;
 

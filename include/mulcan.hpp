@@ -2,6 +2,7 @@
 
 #include "mulcan_errors.hpp"
 #include "mulcan_infos.hpp"
+#include "utils/shaders.hpp"
 #include <array>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
@@ -62,7 +63,7 @@ namespace Mulcan
 	MulcanResult initializeTransferBuffer();
 
 	// Render Functions
-	void transferBufferCommand(TransferBuffer buffer); // TODO: Make that make all commands once instead of many submits.
+	void transferBufferCommand(TransferBuffer& buffer); // TODO: Make that make all commands once instead of many submits.
 	void beginFrame();
 	void endFrame();
 
