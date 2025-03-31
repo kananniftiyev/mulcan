@@ -79,11 +79,25 @@ VkPipelineInputAssemblyStateCreateInfo MulcanInfos::createInputAssemblyStateInfo
 	return input_assembly_state;
 }
 
+[[nodiscard]]
 VkCommandBufferBeginInfo MulcanInfos::createCommandBufferBeginInfo(VkCommandBufferUsageFlags flag)
 {
 	return VkCommandBufferBeginInfo{
 		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 		.flags = flag,
 	};
+}
+
+[[nodiscard]]
+VkPipelineVertexInputStateCreateInfo MulcanInfos::createPipelineVertexInputState(const VkVertexInputBindingDescription& input_binding, const std::array<VkVertexInputAttributeDescription, 2>& input_attributes)
+{
+	VkPipelineVertexInputStateCreateInfo pipeline_vertex_state{};
+	pipeline_vertex_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
+	pipeline_vertex_state.vertexBindingDescriptionCount = 1;
+	pipeline_vertex_state.vertexAttributeDescriptionCount = 2;
+	pipeline_vertex_state.pVertexBindingDescriptions = &input_binding;
+	pipeline_vertex_state.pVertexAttributeDescriptions = input_attributes.data();
+
+	return pipeline_vertex_state;
 }
 

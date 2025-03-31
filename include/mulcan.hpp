@@ -29,36 +29,52 @@ namespace Mulcan
 		VkCommandPool render_pool;
 	};
 
-	struct ImmediateSubmitData {
+	struct ImmediateSubmitData
+	{
 		VkFence fence;
 		VkCommandPool pool;
 		VkCommandBuffer cmd;
 	};
 
-	struct Vertex {
+	struct Vertex
+	{
 		glm::vec3 position;
 		glm::vec3 color;
 		// glm::vec2 texCoords;
 	};
 
 	// TODO: Rename
-	struct AllocatedBuffer {
+	struct AllocatedBuffer
+	{
 		VkBuffer buffer;
 		VmaAllocation allocation;
 	};
 
-	struct TransferBuffer {
+	struct TransferBuffer
+	{
 		VkBuffer src, dst;
 		size_t buffer_size;
+	};
+
+	struct NewPipelineData
+	{
+		VkShaderModule vertex_shader;
+		VkShaderModule fragment_shader;
+
+		VkVertexInputBindingDescription binding_description;
+		std::array<VkVertexInputAttributeDescription, 2> input_attributes;
+
+		VkRenderPass renderpass;
+		VkPipelineLayout pipeline_layout;
 	};
 
 	extern VmaAllocator g_vma_allocator;
 
 	// Init Functions
-	MulcanResult initialize(GLFWwindow*& window);
+	MulcanResult initialize(GLFWwindow *&window);
 
 	// Render Functions
-	void transferBufferCommand(TransferBuffer& buffer); // TODO: Make that make all commands once instead of many submits.
+	void transferBufferCommand(TransferBuffer &buffer); // TODO: Make that make all commands once instead of many submits.
 	void beginFrame();
 	void endFrame();
 
@@ -70,11 +86,12 @@ namespace Mulcan
 	// Helper funcs
 
 	VkPipelineLayout buildPipelineLayout(VkPushConstantRange range, uint32_t range_count, uint32_t layout_count, VkDescriptorSetLayout layout);
-	VkPipeline buildPipeline(VkPipelineLayout& layout, VkRenderPass& pass, VkShaderModule vertex, VkShaderModule frag);
+	VkPipeline buildPipeline(const Mulcan::NewPipelineData &new_pipeline_data);
 
 	// TODO: Remove template.
 	template <typename T>
-	TransferBuffer createTransferBuffer(std::vector<T> data, VkBufferUsageFlags flag) {
+	TransferBuffer createTransferBuffer(std::vector<T> data, VkBufferUsageFlags flag)
+	{
 
 		const auto size = sizeof(T) * data.size();
 
@@ -91,7 +108,7 @@ namespace Mulcan
 
 		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::g_vma_allocator, &buffer_info, &vma_alloc_info, &staging_buffer.buffer, &staging_buffer.allocation, nullptr), "Could not create transfer Buffer");
 
-		void* s_data;
+		void *s_data;
 		vmaMapMemory(Mulcan::g_vma_allocator, staging_buffer.allocation, &s_data);
 
 		memcpy(s_data, data.data(), size);
@@ -121,8 +138,7 @@ namespace Mulcan
 	VkCommandBuffer getCurrCommand();
 	VkRenderPass getMainPass();
 
-	bool loadShaderModule(const char* filePath, VkShaderModule* out_shader_module);
+	bool loadShaderModule(const char *filePath, VkShaderModule *out_shader_module);
 
-
-	void cleanup();
+	void shutdown();
 }
