@@ -2,7 +2,6 @@
 
 #include "mulcan_errors.hpp"
 #include "mulcan_infos.hpp"
-#include "utils/shaders.hpp"
 #include <array>
 #include <fstream>
 #include <GLFW/glfw3.h>
@@ -55,14 +54,8 @@ namespace Mulcan
 
 	extern VmaAllocator g_vma_allocator;
 
-
-	// TODO: one func for all.
 	// Init Functions
 	MulcanResult initialize(GLFWwindow*& window);
-	MulcanResult initializeCommands();
-	MulcanResult initializeRenderPass();
-	MulcanResult initializeFrameBuffer();
-	MulcanResult initializeTransferBuffer();
 
 	// Render Functions
 	void transferBufferCommand(TransferBuffer& buffer); // TODO: Make that make all commands once instead of many submits.
