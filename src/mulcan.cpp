@@ -17,7 +17,7 @@ namespace Mulcan
 	std::vector<VkImageView> g_swapchain_image_views;
 	VmaAllocator g_vma_allocator;
 	VkFormat g_swapchain_format;
-	VkExtent2D g_window_extend{.width = 800, .height = 600};
+	VkExtent2D g_window_extend{ .width = 800, .height = 600 };
 	bool g_vsync = true;
 	bool g_imgui = false;
 	constexpr size_t FRAME_OVERLAP = 2;
@@ -30,20 +30,20 @@ namespace Mulcan
 	std::array<FrameData, FRAME_OVERLAP> frames;
 	std::vector<VkFramebuffer> g_main_framebuffers;
 
-	FrameData &getCurrFrame() { return frames[framecount % FRAME_OVERLAP]; }
+	FrameData& getCurrFrame() { return frames[framecount % FRAME_OVERLAP]; }
 
 }
 
 namespace
 {
-	Mulcan::MulcanResult initializeVulkan(GLFWwindow *&window)
+	Mulcan::MulcanResult initializeVulkan(GLFWwindow*& window)
 	{
 		vkb::InstanceBuilder instance_builder;
 		auto inst_ret = instance_builder.request_validation_layers()
-							.require_api_version(1, 2, 0)
-							.use_default_debug_messenger()
-							.set_app_name("Mulcan")
-							.build();
+			.require_api_version(1, 2, 0)
+			.use_default_debug_messenger()
+			.set_app_name("Mulcan")
+			.build();
 
 		auto vkb_inst = inst_ret.value();
 
@@ -52,31 +52,31 @@ namespace
 
 		CHECK_VK(glfwCreateWindowSurface(Mulcan::g_instance, window, nullptr, &Mulcan::g_surface), Mulcan::MulcanResult::M_UNKNOWN_ERROR);
 
-		vkb::PhysicalDeviceSelector selector{vkb_inst};
+		vkb::PhysicalDeviceSelector selector{ vkb_inst };
 		vkb::PhysicalDevice physical_device = selector
-												  .set_minimum_version(1, 2)
-												  .set_surface(Mulcan::g_surface)
-												  .select()
-												  .value();
+			.set_minimum_version(1, 2)
+			.set_surface(Mulcan::g_surface)
+			.select()
+			.value();
 
-		vkb::DeviceBuilder deviceBuilder{physical_device};
+		vkb::DeviceBuilder deviceBuilder{ physical_device };
 
 		vkb::Device vkb_device = deviceBuilder.build().value();
 
 		Mulcan::g_device = vkb_device.device;
 		Mulcan::g_physical_device = physical_device.physical_device;
 
-		vkb::SwapchainBuilder swapchainBuilder{Mulcan::g_physical_device, Mulcan::g_device, Mulcan::g_surface};
+		vkb::SwapchainBuilder swapchainBuilder{ Mulcan::g_physical_device, Mulcan::g_device, Mulcan::g_surface };
 
 		Mulcan::g_swapchain_format = VK_FORMAT_B8G8R8A8_UNORM;
 
 		vkb::Swapchain vkb_swapchain = swapchainBuilder
-										   .set_desired_format(VkSurfaceFormatKHR{.format = Mulcan::g_swapchain_format, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
-										   .set_desired_present_mode((Mulcan::g_vsync) ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
-										   .set_desired_extent(800, 600)
-										   .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
-										   .build()
-										   .value();
+			.set_desired_format(VkSurfaceFormatKHR{ .format = Mulcan::g_swapchain_format, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
+			.set_desired_present_mode((Mulcan::g_vsync) ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
+			.set_desired_extent(800, 600)
+			.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+			.build()
+			.value();
 
 		Mulcan::g_window_extend = vkb_swapchain.extent;
 		Mulcan::g_swapchain = vkb_swapchain.swapchain;
@@ -134,23 +134,23 @@ namespace
 			.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
 			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-			.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+			.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
 
 		VkAttachmentReference color_attachment_refence{
 			.attachment = 0,
-			.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL};
+			.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
 
 		VkSubpassDescription subpass{
 			.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
 			.colorAttachmentCount = 1,
-			.pColorAttachments = &color_attachment_refence};
+			.pColorAttachments = &color_attachment_refence };
 
 		VkSubpassDependency dependency{
 			.srcSubpass = VK_SUBPASS_EXTERNAL,
 			.dstSubpass = 0,
 			.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 			.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-			.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT};
+			.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT };
 
 		VkRenderPassCreateInfo render_pass_info{
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
@@ -175,7 +175,7 @@ namespace
 			.renderPass = Mulcan::main_pass,
 			.width = Mulcan::g_window_extend.width,
 			.height = Mulcan::g_window_extend.height,
-			.layers = 1};
+			.layers = 1 };
 
 		Mulcan::g_main_framebuffers.resize(Mulcan::g_swapchain_images.size());
 		for (int i = 0; i < Mulcan::g_swapchain_images.size(); i++)
@@ -207,7 +207,7 @@ namespace
 
 }
 
-Mulcan::MulcanResult Mulcan::initialize(GLFWwindow *&window)
+Mulcan::MulcanResult Mulcan::initialize(GLFWwindow*& window)
 {
 	initializeVulkan(window);
 	initializeCommands();
@@ -217,7 +217,7 @@ Mulcan::MulcanResult Mulcan::initialize(GLFWwindow *&window)
 }
 
 // TODO: Better way to get our dst buffer.
-void Mulcan::transferBufferCommand(TransferBuffer &buffer)
+void Mulcan::transferBufferCommand(TransferBuffer& buffer)
 {
 	auto cmd = Mulcan::buffer_transfer.cmd;
 
@@ -268,7 +268,7 @@ void Mulcan::beginFrame()
 
 	VkClearValue clear_value[1]{};
 
-	clear_value[0].color = {{50 / 255.0f, 60 / 255.0f, 68 / 255.0f, 1.0f}};
+	clear_value[0].color = { {50 / 255.0f, 60 / 255.0f, 68 / 255.0f, 1.0f} };
 
 	VkRenderPassBeginInfo main_renderpass_info{
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -278,7 +278,7 @@ void Mulcan::beginFrame()
 			.offset = {0, 0},
 			.extent = Mulcan::g_window_extend},
 		.clearValueCount = 1,
-		.pClearValues = &clear_value[0]};
+		.pClearValues = &clear_value[0] };
 
 	vkBeginCommandBuffer(Mulcan::getCurrFrame().render_cmd, &render_cmd_info);
 
@@ -293,7 +293,7 @@ void Mulcan::beginFrame()
 
 	VkRect2D scissor{
 		.offset = {0, 0},
-		.extent = Mulcan::g_window_extend};
+		.extent = Mulcan::g_window_extend };
 
 	vkCmdSetViewport(Mulcan::getCurrFrame().render_cmd, 0, 1, &viewport);
 	vkCmdSetScissor(Mulcan::getCurrFrame().render_cmd, 0, 1, &scissor);
@@ -316,7 +316,7 @@ void Mulcan::endFrame()
 		.commandBufferCount = 1,
 		.pCommandBuffers = &Mulcan::getCurrFrame().render_cmd,
 		.signalSemaphoreCount = 1,
-		.pSignalSemaphores = &Mulcan::getCurrFrame().render_semaphore};
+		.pSignalSemaphores = &Mulcan::getCurrFrame().render_semaphore };
 
 	CHECK_VK_LOG(vkQueueSubmit(Mulcan::g_queue, 1, &submit_info, Mulcan::getCurrFrame().render_fence), "Could not submit command buffer");
 
@@ -326,7 +326,7 @@ void Mulcan::endFrame()
 		.pWaitSemaphores = &Mulcan::getCurrFrame().render_semaphore,
 		.swapchainCount = 1,
 		.pSwapchains = &Mulcan::g_swapchain,
-		.pImageIndices = &Mulcan::g_swapchain_image_index};
+		.pImageIndices = &Mulcan::g_swapchain_image_index };
 
 	CHECK_VK_LOG(vkQueuePresentKHR(Mulcan::g_queue, &present_info), "Could not Present.");
 
@@ -359,7 +359,7 @@ void Mulcan::setImgui(bool value)
 }
 
 [[nodiscard]]
-VkPipelineLayout Mulcan::buildPipelineLayout(VkPushConstantRange range, uint32_t range_count, uint32_t layout_count, VkDescriptorSetLayout layout)
+VkPipelineLayout Mulcan::buildPipelineLayout(const VkPushConstantRange& range, uint32_t range_count, uint32_t layout_count, const VkDescriptorSetLayout& layout)
 {
 	VkPipelineLayoutCreateInfo info{};
 	info.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -377,7 +377,7 @@ VkPipelineLayout Mulcan::buildPipelineLayout(VkPushConstantRange range, uint32_t
 // TODO: Caching support.
 // TODO: Seperate shader stages.
 [[nodiscard]]
-VkPipeline Mulcan::buildPipeline(const Mulcan::NewPipelineData &new_pipeline_data)
+VkPipeline Mulcan::buildPipeline(const Mulcan::NewPipelineData& new_pipeline_data)
 {
 	std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages;
 
@@ -445,6 +445,9 @@ VkPipeline Mulcan::buildPipeline(const Mulcan::NewPipelineData &new_pipeline_dat
 	VkPipeline pipeline;
 	CHECK_VK_LOG(vkCreateGraphicsPipelines(Mulcan::g_device, nullptr, 1, &info, nullptr, &pipeline), "Could not create pipeline.");
 
+	vkDestroyShaderModule(Mulcan::g_device, new_pipeline_data.vertex_shader, nullptr);
+	vkDestroyShaderModule(Mulcan::g_device, new_pipeline_data.fragment_shader, nullptr);
+
 	return pipeline;
 }
 
@@ -458,7 +461,7 @@ VkRenderPass Mulcan::getMainPass()
 	return Mulcan::main_pass;
 }
 
-bool Mulcan::loadShaderModule(const char *filePath, VkShaderModule *out_shader_module)
+bool Mulcan::loadShaderModule(const char* filePath, VkShaderModule* out_shader_module)
 {
 	std::ifstream file(filePath, std::ios::ate | std::ios::binary);
 
@@ -473,7 +476,7 @@ bool Mulcan::loadShaderModule(const char *filePath, VkShaderModule *out_shader_m
 
 	file.seekg(0);
 
-	file.read((char *)buffer.data(), fileSize);
+	file.read((char*)buffer.data(), fileSize);
 
 	file.close();
 
@@ -497,20 +500,20 @@ bool Mulcan::loadShaderModule(const char *filePath, VkShaderModule *out_shader_m
 void Mulcan::shutdown()
 {
 
-	for (auto &framebuffer : Mulcan::g_main_framebuffers)
+	for (auto& framebuffer : Mulcan::g_main_framebuffers)
 	{
 		vkDestroyFramebuffer(Mulcan::g_device, framebuffer, nullptr);
 	}
 
 	vkDestroyRenderPass(Mulcan::g_device, Mulcan::main_pass, nullptr);
-	for (auto &frame : frames)
+	for (auto& frame : frames)
 	{
 		vkDestroyCommandPool(Mulcan::g_device, frame.render_pool, nullptr);
 		vkDestroyFence(Mulcan::g_device, frame.render_fence, nullptr);
 		vkDestroySemaphore(Mulcan::g_device, frame.render_semaphore, nullptr);
 		vkDestroySemaphore(Mulcan::g_device, frame.swapchain_semaphore, nullptr);
 	}
-	for (auto &view : Mulcan::g_swapchain_image_views)
+	for (auto& view : Mulcan::g_swapchain_image_views)
 	{
 		vkDestroyImageView(Mulcan::g_device, view, nullptr);
 	}
