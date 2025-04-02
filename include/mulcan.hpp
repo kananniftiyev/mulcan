@@ -86,7 +86,6 @@ namespace Mulcan
 
 	// Settigns functions
 	void setVsync(bool value);
-	void setFrameInFlight(FrameInFlight value);
 	void setImgui(bool value);
 
 	// Helper funcs

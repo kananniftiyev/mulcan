@@ -21,7 +21,14 @@ namespace Mulcan
 	VkExtent2D g_window_extend{ .width = 800, .height = 600 };
 	bool g_vsync = true;
 	bool g_imgui = false;
+
+#ifdef TRIBLE_BUFFER
+	constexpr size_t FRAME_OVERLAP = 3;
+#else
 	constexpr size_t FRAME_OVERLAP = 2;
+#endif // TRIBLE_BUFFER
+
+
 	VkRenderPass main_pass;
 	ImmediateSubmitData buffer_transfer;
 
@@ -419,21 +426,6 @@ void Mulcan::endFrame()
 void Mulcan::setVsync(bool value)
 {
 	Mulcan::g_vsync = value;
-}
-
-void Mulcan::setFrameInFlight(FrameInFlight value)
-{
-	/*switch (value)
-	{
-	case Mulcan::FrameInFlight::DOUBLE_BUFFERING:
-		FRAME_OVERLAP = 2;
-		break;
-	case Mulcan::FrameInFlight::TRIPLE_BUFFERING:
-		FRAME_OVERLAP = 3;
-		break;
-	default:
-		break;
-	}*/
 }
 
 void Mulcan::setImgui(bool value)
