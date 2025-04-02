@@ -17,6 +17,7 @@ namespace Mulcan
 	std::vector<VkImageView> g_swapchain_image_views;
 	VmaAllocator g_vma_allocator;
 	VkFormat g_swapchain_format;
+	VkFormat g_depth_format;
 	VkExtent2D g_window_extend{ .width = 800, .height = 600 };
 	bool g_vsync = true;
 	bool g_imgui = false;
@@ -33,6 +34,9 @@ namespace Mulcan
 	FrameData& getCurrFrame() { return frames[framecount % FRAME_OVERLAP]; }
 
 	std::queue<TransferBuffer> g_transfer_buffers;
+
+	AllocatedImage g_depth_image;
+	VkImageView g_depth_image_view;
 
 }
 
@@ -87,8 +91,6 @@ namespace
 		Mulcan::g_queue = vkb_device.get_queue(vkb::QueueType::graphics).value();
 		Mulcan::g_queue_family_index = vkb_device.get_queue_index(vkb::QueueType::graphics).value();
 
-		// TODO: Depth buffer
-
 		VmaAllocatorCreateInfo allocator_create_info = {};
 		allocator_create_info.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
 		allocator_create_info.vulkanApiVersion = VK_API_VERSION_1_2;
@@ -100,6 +102,43 @@ namespace
 		CHECK_VK(res, Mulcan::MulcanResult::M_VMA_ERROR);
 
 		return Mulcan::MulcanResult::M_SUCCESS;
+	}
+
+	Mulcan::MulcanResult initializeDepthImages() {
+		Mulcan::g_depth_format = VK_FORMAT_D32_SFLOAT;
+
+		VkExtent3D depth_extend{};
+		depth_extend.depth = 1.0f;
+		depth_extend.width = Mulcan::g_window_extend.width;
+		depth_extend.height = Mulcan::g_window_extend.height;
+
+		VkImageCreateInfo depth_image_info{};
+		depth_image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		depth_image_info.imageType = VK_IMAGE_TYPE_2D;
+		depth_image_info.extent = depth_extend;
+		depth_image_info.format = Mulcan::g_depth_format;
+		depth_image_info.samples = VK_SAMPLE_COUNT_1_BIT;
+		depth_image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
+		depth_image_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+
+		VmaAllocationCreateInfo depth_alloc_info{};
+		depth_alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+		depth_alloc_info.memoryTypeBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
+
+		CHECK_VK(vmaCreateImage(Mulcan::g_vma_allocator, &depth_image_info, &depth_alloc_info, &Mulcan::g_depth_image.image, &Mulcan::g_depth_image.allocation, nullptr));
+
+		VkImageViewCreateInfo depth_image_view_info{};
+		depth_image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+		depth_image_view_info.image = Mulcan::g_depth_image.image;
+		depth_image_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
+		depth_image_view_info.format = Mulcan::g_depth_format;
+		depth_image_view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
+		depth_image_view_info.subresourceRange.baseMipLevel = 0;
+		depth_image_view_info.subresourceRange.levelCount = 1;
+		depth_image_view_info.subresourceRange.baseArrayLayer = 0;
+		depth_image_view_info.subresourceRange.layerCount = 1;
+
+		CHECK_VK(vkCreateImageView(Mulcan::g_device, &depth_image_view_info, nullptr, &Mulcan::g_depth_image_view));
 	}
 
 	Mulcan::MulcanResult initializeCommands()
@@ -138,14 +177,31 @@ namespace
 			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 			.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
 
+		VkAttachmentDescription depth_attachment{
+			.format = Mulcan::g_depth_format,
+			.samples = VK_SAMPLE_COUNT_1_BIT,
+			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+			.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+			.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+		};
+
 		VkAttachmentReference color_attachment_refence{
 			.attachment = 0,
 			.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
 
+		VkAttachmentReference depth_attachment_reference{
+			.attachment = 1,
+			.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL
+		};
+
 		VkSubpassDescription subpass{
 			.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-			.colorAttachmentCount = 1,
-			.pColorAttachments = &color_attachment_refence };
+			.colorAttachmentCount = 2,
+			.pColorAttachments = &color_attachment_refence,
+			.pDepthStencilAttachment = &depth_attachment_reference };
 
 		VkSubpassDependency dependency{
 			.srcSubpass = VK_SUBPASS_EXTERNAL,
@@ -154,14 +210,30 @@ namespace
 			.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 			.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT };
 
+		VkSubpassDependency depth_dependency = {};
+		depth_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+		depth_dependency.dstSubpass = 0;
+		depth_dependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		depth_dependency.srcAccessMask = 0;
+		depth_dependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		depth_dependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+
+		std::array<VkAttachmentDescription, 2> attachmenets;
+		attachmenets[0] = color_attachment;
+		attachmenets[1] = depth_attachment;
+
+		std::array<VkSubpassDependency, 2> dependencies;
+		dependencies[0] = dependency;
+		dependencies[1] = depth_dependency;
+
 		VkRenderPassCreateInfo render_pass_info{
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-			.attachmentCount = 1,
-			.pAttachments = &color_attachment,
+			.attachmentCount = dependencies.size(),
+			.pAttachments = &attachmenets[0],
 			.subpassCount = 1,
 			.pSubpasses = &subpass,
-			.dependencyCount = 1,
-			.pDependencies = &dependency,
+			.dependencyCount = dependencies.size(),
+			.pDependencies = &dependencies[0],
 		};
 
 		CHECK_VK(vkCreateRenderPass(Mulcan::g_device, &render_pass_info, nullptr, &Mulcan::main_pass), Mulcan::MulcanResult::M_RENDERPASS_ERROR);
@@ -182,9 +254,10 @@ namespace
 		Mulcan::g_main_framebuffers.resize(Mulcan::g_swapchain_images.size());
 		for (int i = 0; i < Mulcan::g_swapchain_images.size(); i++)
 		{
-			std::array<VkImageView, 1> attachments{};
+			std::array<VkImageView, 2> attachments{};
 
 			attachments[0] = Mulcan::g_swapchain_image_views[i];
+			attachments[1] = Mulcan::g_depth_image_view;
 
 			fb_info.attachmentCount = static_cast<uint32_t>(attachments.size());
 			fb_info.pAttachments = attachments.data();
@@ -194,6 +267,7 @@ namespace
 
 		return Mulcan::MulcanResult::M_SUCCESS;
 	}
+
 	Mulcan::MulcanResult initializeTransferBuffer()
 	{
 		auto fence_info = MulcanInfos::createFenceInfo();
@@ -212,6 +286,8 @@ namespace
 Mulcan::MulcanResult Mulcan::initialize(GLFWwindow*& window)
 {
 	initializeVulkan(window);
+	// TODO: Macro for no Depth;
+	initializeDepthImages();
 	initializeCommands();
 	initializeRenderPass();
 	initializeFrameBuffer();
@@ -272,9 +348,10 @@ void Mulcan::beginFrame()
 
 	auto render_cmd_info = MulcanInfos::createCommandBufferBeginInfo(0);
 
-	VkClearValue clear_value[1]{};
+	VkClearValue clear_value[2]{};
 
 	clear_value[0].color = { {50 / 255.0f, 60 / 255.0f, 68 / 255.0f, 1.0f} };
+	clear_value[1].depthStencil.depth = 1.0f;
 
 	VkRenderPassBeginInfo main_renderpass_info{
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
@@ -283,7 +360,7 @@ void Mulcan::beginFrame()
 		.renderArea = {
 			.offset = {0, 0},
 			.extent = Mulcan::g_window_extend},
-		.clearValueCount = 1,
+		.clearValueCount = 2,
 		.pClearValues = &clear_value[0] };
 
 	vkBeginCommandBuffer(Mulcan::getCurrFrame().render_cmd, &render_cmd_info);

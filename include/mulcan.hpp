@@ -51,6 +51,11 @@ namespace Mulcan
 		VmaAllocation allocation;
 	};
 
+	struct AllocatedImage {
+		VkImage image;
+		VmaAllocation allocation;
+	};
+
 	struct TransferBuffer
 	{
 		VkBuffer src, dst;
