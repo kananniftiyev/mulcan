@@ -105,6 +105,7 @@ namespace Mulcan
 
 		VmaAllocationCreateInfo vma_alloc_info{};
 		vma_alloc_info.usage = VMA_MEMORY_USAGE_CPU_ONLY;
+		vma_alloc_info.memoryTypeBits = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
 		AllocatedBuffer staging_buffer;
 
@@ -124,6 +125,7 @@ namespace Mulcan
 		gpu_buffer_info.usage = flag | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
 		vma_alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
+		vma_alloc_info.memoryTypeBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
 		AllocatedBuffer gpu_buffer;
 
