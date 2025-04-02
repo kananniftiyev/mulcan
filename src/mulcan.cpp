@@ -32,6 +32,8 @@ namespace Mulcan
 
 	FrameData& getCurrFrame() { return frames[framecount % FRAME_OVERLAP]; }
 
+	std::queue<TransferBuffer> g_transfer_buffers;
+
 }
 
 namespace
@@ -217,7 +219,7 @@ Mulcan::MulcanResult Mulcan::initialize(GLFWwindow*& window)
 }
 
 // TODO: Better way to get our dst buffer.
-void Mulcan::transferBufferCommand(TransferBuffer& buffer)
+void Mulcan::runTransferBufferCommand()
 {
 	auto cmd = Mulcan::buffer_transfer.cmd;
 
@@ -228,8 +230,12 @@ void Mulcan::transferBufferCommand(TransferBuffer& buffer)
 	VkBufferCopy copy;
 	copy.dstOffset = 0;
 	copy.srcOffset = 0;
-	copy.size = buffer.buffer_size;
-	vkCmdCopyBuffer(cmd, buffer.src, buffer.dst, 1, &copy);
+
+	while (!Mulcan::g_transfer_buffers.empty()) {
+		copy.size = Mulcan::g_transfer_buffers.front().buffer_size;
+		vkCmdCopyBuffer(cmd, Mulcan::g_transfer_buffers.front().src, Mulcan::g_transfer_buffers.front().dst, 1, &copy);
+		Mulcan::g_transfer_buffers.pop();
+	}
 
 	CHECK_VK_LOG(vkEndCommandBuffer(cmd), "Could not end command buffer");
 
@@ -449,6 +455,17 @@ VkPipeline Mulcan::buildPipeline(const Mulcan::NewPipelineData& new_pipeline_dat
 	vkDestroyShaderModule(Mulcan::g_device, new_pipeline_data.fragment_shader, nullptr);
 
 	return pipeline;
+}
+
+Mulcan::MulcanResult Mulcan::addTransferBuffer(const Mulcan::TransferBuffer& transfer_buffer)
+{
+	if (transfer_buffer.buffer_size == 0 || transfer_buffer.src == VK_NULL_HANDLE || transfer_buffer.dst == VK_NULL_HANDLE)
+	{
+		return Mulcan::MulcanResult::M_EMPTY_VARS_OR_BUFFERS;
+	}
+	Mulcan::g_transfer_buffers.push(transfer_buffer);
+
+	return Mulcan::MulcanResult::M_SUCCESS;
 }
 
 VkCommandBuffer Mulcan::getCurrCommand()

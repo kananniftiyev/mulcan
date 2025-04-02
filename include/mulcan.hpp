@@ -7,6 +7,7 @@
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <iostream>
+#include <queue>
 #include <string>
 #include <vector>
 #include <VkBootstrap.h>
@@ -74,7 +75,7 @@ namespace Mulcan
 	MulcanResult initialize(GLFWwindow*& window);
 
 	// Render Functions
-	void transferBufferCommand(TransferBuffer& buffer); // TODO: Make that make all commands once instead of many submits.
+	void runTransferBufferCommand();
 	void beginFrame();
 	void endFrame();
 
@@ -87,6 +88,7 @@ namespace Mulcan
 
 	VkPipelineLayout buildPipelineLayout(const VkPushConstantRange& range, uint32_t range_count, uint32_t layout_count, const VkDescriptorSetLayout& layout);
 	VkPipeline buildPipeline(const Mulcan::NewPipelineData& new_pipeline_data);
+	MulcanResult addTransferBuffer(const Mulcan::TransferBuffer& transfer_buffer);
 
 	// TODO: Remove template.
 	template <typename T>

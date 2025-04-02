@@ -16,6 +16,7 @@ namespace Mulcan
 		M_FRAMEBUFFER_INIT_ERROR = 8,
 		M_SYNC_ERROR = 9,
 		M_QUEUE_ERROR = 10,
+		M_EMPTY_VARS_OR_BUFFERS = 11,
 
 	};
 
