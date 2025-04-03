@@ -5,22 +5,39 @@
 // TODO: better naming
 namespace Mulcan
 {
-	VkDevice g_device;
-	VkInstance g_instance;
-	VkPhysicalDevice g_physical_device;
-	VkQueue g_queue;
-	uint32_t g_queue_family_index;
-	VkSurfaceKHR g_surface;
-	VkSwapchainKHR g_swapchain;
-	VkDebugUtilsMessengerEXT g_debug_messenger;
-	std::vector<VkImage> g_swapchain_images;
-	std::vector<VkImageView> g_swapchain_image_views;
-	VmaAllocator g_vma_allocator;
-	VkFormat g_swapchain_format;
-	VkFormat g_depth_format;
-	VkExtent2D g_window_extend{ .width = 800, .height = 600 };
-	bool g_vsync = true;
-	bool g_imgui = false;
+	namespace Settings {
+		bool g_vsync = true;
+		bool g_imgui = false;
+		bool g_has_depth = true;
+		VkExtent2D g_window_extend{ .width = 800, .height = 600 };
+	}
+
+	namespace VKContext {
+		VkDevice g_device;
+		VkInstance g_instance;
+		VkPhysicalDevice g_physical_device;
+		VkQueue g_queue;
+		uint32_t g_queue_family_index;
+		VkSurfaceKHR g_surface;
+		VkSwapchainKHR g_swapchain;
+		VkDebugUtilsMessengerEXT g_debug_messenger;
+		VmaAllocator g_vma_allocator;
+	}
+
+	namespace Render {
+		std::vector<VkImage> g_swapchain_images;
+		std::vector<VkImageView> g_swapchain_image_views;
+		VkFormat g_swapchain_format;
+		VkFormat g_depth_format;
+		VkRenderPass main_pass;
+		std::array<FrameData, FRAME_OVERLAP> frames;
+		std::vector<VkFramebuffer> g_main_framebuffers;
+		AllocatedImage g_depth_image;
+		VkImageView g_depth_image_view;
+		uint32_t framecount = 0;
+		uint32_t g_swapchain_image_index;
+	}
+
 
 #ifdef TRIBLE_BUFFER
 	constexpr size_t FRAME_OVERLAP = 3;
@@ -28,22 +45,10 @@ namespace Mulcan
 	constexpr size_t FRAME_OVERLAP = 2;
 #endif // TRIBLE_BUFFER
 
-
-	VkRenderPass main_pass;
 	ImmediateSubmitData buffer_transfer;
-
-	uint32_t framecount = 0;
-	uint32_t g_swapchain_image_index;
-
-	std::array<FrameData, FRAME_OVERLAP> frames;
-	std::vector<VkFramebuffer> g_main_framebuffers;
-
-	FrameData& getCurrFrame() { return frames[framecount % FRAME_OVERLAP]; }
-
 	std::queue<TransferBuffer> g_transfer_buffers;
 
-	AllocatedImage g_depth_image;
-	VkImageView g_depth_image_view;
+	FrameData& getCurrFrame() { return Render::frames[Render::framecount % FRAME_OVERLAP]; }
 
 }
 
@@ -60,15 +65,15 @@ namespace
 
 		auto vkb_inst = inst_ret.value();
 
-		Mulcan::g_instance = vkb_inst.instance;
-		Mulcan::g_debug_messenger = vkb_inst.debug_messenger;
+		Mulcan::VKContext::g_instance = vkb_inst.instance;
+		Mulcan::VKContext::g_debug_messenger = vkb_inst.debug_messenger;
 
-		CHECK_VK(glfwCreateWindowSurface(Mulcan::g_instance, window, nullptr, &Mulcan::g_surface), Mulcan::MulcanResult::M_UNKNOWN_ERROR);
+		CHECK_VK(glfwCreateWindowSurface(Mulcan::VKContext::g_instance, window, nullptr, &Mulcan::VKContext::g_surface), Mulcan::MulcanResult::M_UNKNOWN_ERROR);
 
 		vkb::PhysicalDeviceSelector selector{ vkb_inst };
 		vkb::PhysicalDevice physical_device = selector
 			.set_minimum_version(1, 2)
-			.set_surface(Mulcan::g_surface)
+			.set_surface(Mulcan::VKContext::g_surface)
 			.select()
 			.value();
 
@@ -76,54 +81,54 @@ namespace
 
 		vkb::Device vkb_device = deviceBuilder.build().value();
 
-		Mulcan::g_device = vkb_device.device;
-		Mulcan::g_physical_device = physical_device.physical_device;
+		Mulcan::VKContext::g_device = vkb_device.device;
+		Mulcan::VKContext::g_physical_device = physical_device.physical_device;
 
-		vkb::SwapchainBuilder swapchainBuilder{ Mulcan::g_physical_device, Mulcan::g_device, Mulcan::g_surface };
+		vkb::SwapchainBuilder swapchainBuilder{ Mulcan::VKContext::g_physical_device, Mulcan::VKContext::g_device, Mulcan::VKContext::g_surface };
 
-		Mulcan::g_swapchain_format = VK_FORMAT_B8G8R8A8_UNORM;
+		Mulcan::Render::g_swapchain_format = VK_FORMAT_B8G8R8A8_UNORM;
 
 		vkb::Swapchain vkb_swapchain = swapchainBuilder
-			.set_desired_format(VkSurfaceFormatKHR{ .format = Mulcan::g_swapchain_format, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
-			.set_desired_present_mode((Mulcan::g_vsync) ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
+			.set_desired_format(VkSurfaceFormatKHR{ .format = Mulcan::Render::g_swapchain_format, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR })
+			.set_desired_present_mode((Mulcan::Settings::g_vsync) ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
 			.set_desired_extent(800, 600)
 			.add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
 			.build()
 			.value();
 
-		Mulcan::g_window_extend = vkb_swapchain.extent;
-		Mulcan::g_swapchain = vkb_swapchain.swapchain;
-		Mulcan::g_swapchain_images = vkb_swapchain.get_images().value();
-		Mulcan::g_swapchain_image_views = vkb_swapchain.get_image_views().value();
-		Mulcan::g_queue = vkb_device.get_queue(vkb::QueueType::graphics).value();
-		Mulcan::g_queue_family_index = vkb_device.get_queue_index(vkb::QueueType::graphics).value();
+		Mulcan::Settings::g_window_extend = vkb_swapchain.extent;
+		Mulcan::VKContext::g_swapchain = vkb_swapchain.swapchain;
+		Mulcan::Render::g_swapchain_images = vkb_swapchain.get_images().value();
+		Mulcan::Render::g_swapchain_image_views = vkb_swapchain.get_image_views().value();
+		Mulcan::VKContext::g_queue = vkb_device.get_queue(vkb::QueueType::graphics).value();
+		Mulcan::VKContext::g_queue_family_index = vkb_device.get_queue_index(vkb::QueueType::graphics).value();
 
 		VmaAllocatorCreateInfo allocator_create_info = {};
 		allocator_create_info.flags = VMA_ALLOCATOR_CREATE_EXT_MEMORY_BUDGET_BIT;
 		allocator_create_info.vulkanApiVersion = VK_API_VERSION_1_2;
-		allocator_create_info.physicalDevice = Mulcan::g_physical_device;
-		allocator_create_info.device = Mulcan::g_device;
-		allocator_create_info.instance = Mulcan::g_instance;
+		allocator_create_info.physicalDevice = Mulcan::VKContext::g_physical_device;
+		allocator_create_info.device = Mulcan::VKContext::g_device;
+		allocator_create_info.instance = Mulcan::VKContext::g_instance;
 
-		auto res = vmaCreateAllocator(&allocator_create_info, &Mulcan::g_vma_allocator);
+		auto res = vmaCreateAllocator(&allocator_create_info, &Mulcan::VKContext::g_vma_allocator);
 		CHECK_VK(res, Mulcan::MulcanResult::M_VMA_ERROR);
 
 		return Mulcan::MulcanResult::M_SUCCESS;
 	}
 
 	Mulcan::MulcanResult initializeDepthImages() {
-		Mulcan::g_depth_format = VK_FORMAT_D32_SFLOAT;
+		Mulcan::Render::g_depth_format = VK_FORMAT_D32_SFLOAT;
 
 		VkExtent3D depth_extend{};
 		depth_extend.depth = 1.0f;
-		depth_extend.width = Mulcan::g_window_extend.width;
-		depth_extend.height = Mulcan::g_window_extend.height;
+		depth_extend.width = Mulcan::Settings::g_window_extend.width;
+		depth_extend.height = Mulcan::Settings::g_window_extend.height;
 
 		VkImageCreateInfo depth_image_info{};
 		depth_image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
 		depth_image_info.imageType = VK_IMAGE_TYPE_2D;
 		depth_image_info.extent = depth_extend;
-		depth_image_info.format = Mulcan::g_depth_format;
+		depth_image_info.format = Mulcan::Render::g_depth_format;
 		depth_image_info.samples = VK_SAMPLE_COUNT_1_BIT;
 		depth_image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 		depth_image_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
@@ -132,20 +137,20 @@ namespace
 		depth_alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 		depth_alloc_info.memoryTypeBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-		CHECK_VK(vmaCreateImage(Mulcan::g_vma_allocator, &depth_image_info, &depth_alloc_info, &Mulcan::g_depth_image.image, &Mulcan::g_depth_image.allocation, nullptr));
+		CHECK_VK(vmaCreateImage(Mulcan::VKContext::g_vma_allocator, &depth_image_info, &depth_alloc_info, &Mulcan::Render::g_depth_image.image, &Mulcan::Render::g_depth_image.allocation, nullptr));
 
 		VkImageViewCreateInfo depth_image_view_info{};
 		depth_image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		depth_image_view_info.image = Mulcan::g_depth_image.image;
+		depth_image_view_info.image = Mulcan::Render::g_depth_image.image;
 		depth_image_view_info.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		depth_image_view_info.format = Mulcan::g_depth_format;
+		depth_image_view_info.format = Mulcan::Render::g_depth_format;
 		depth_image_view_info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_DEPTH_BIT;
 		depth_image_view_info.subresourceRange.baseMipLevel = 0;
 		depth_image_view_info.subresourceRange.levelCount = 1;
 		depth_image_view_info.subresourceRange.baseArrayLayer = 0;
 		depth_image_view_info.subresourceRange.layerCount = 1;
 
-		CHECK_VK(vkCreateImageView(Mulcan::g_device, &depth_image_view_info, nullptr, &Mulcan::g_depth_image_view));
+		CHECK_VK(vkCreateImageView(Mulcan::VKContext::g_device, &depth_image_view_info, nullptr, &Mulcan::Render::g_depth_image_view));
 	}
 
 	Mulcan::MulcanResult initializeCommands()
@@ -155,16 +160,16 @@ namespace
 
 		for (size_t i = 0; i < Mulcan::FRAME_OVERLAP; i++)
 		{
-			auto command_pool_info = MulcanInfos::createCommandPoolInfo(Mulcan::g_queue_family_index);
-			CHECK_VK(vkCreateCommandPool(Mulcan::g_device, &command_pool_info, nullptr, &Mulcan::frames[i].render_pool), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+			auto command_pool_info = MulcanInfos::createCommandPoolInfo(Mulcan::VKContext::g_queue_family_index);
+			CHECK_VK(vkCreateCommandPool(Mulcan::VKContext::g_device, &command_pool_info, nullptr, &Mulcan::Render::frames[i].render_pool), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
 
-			auto command_buffer_info = MulcanInfos::createCommandBufferAllocateInfo(Mulcan::frames[i].render_pool, 1);
-			CHECK_VK(vkAllocateCommandBuffers(Mulcan::g_device, &command_buffer_info, &Mulcan::frames[i].render_cmd), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+			auto command_buffer_info = MulcanInfos::createCommandBufferAllocateInfo(Mulcan::Render::frames[i].render_pool, 1);
+			CHECK_VK(vkAllocateCommandBuffers(Mulcan::VKContext::g_device, &command_buffer_info, &Mulcan::Render::frames[i].render_cmd), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
 
-			CHECK_VK(vkCreateFence(Mulcan::g_device, &fence_info, nullptr, &Mulcan::frames[i].render_fence), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+			CHECK_VK(vkCreateFence(Mulcan::VKContext::g_device, &fence_info, nullptr, &Mulcan::Render::frames[i].render_fence), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
 
-			CHECK_VK(vkCreateSemaphore(Mulcan::g_device, &semaphore_info, nullptr, &Mulcan::frames[i].swapchain_semaphore), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
-			CHECK_VK(vkCreateSemaphore(Mulcan::g_device, &semaphore_info, nullptr, &Mulcan::frames[i].render_semaphore), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+			CHECK_VK(vkCreateSemaphore(Mulcan::VKContext::g_device, &semaphore_info, nullptr, &Mulcan::Render::frames[i].swapchain_semaphore), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+			CHECK_VK(vkCreateSemaphore(Mulcan::VKContext::g_device, &semaphore_info, nullptr, &Mulcan::Render::frames[i].render_semaphore), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
 		}
 
 		return Mulcan::MulcanResult::M_SUCCESS;
@@ -185,7 +190,7 @@ namespace
 			.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL };
 
 		VkAttachmentDescription depth_attachment{
-			.format = Mulcan::g_depth_format,
+			.format = Mulcan::Render::g_depth_format,
 			.samples = VK_SAMPLE_COUNT_1_BIT,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -243,7 +248,7 @@ namespace
 			.pDependencies = &dependencies[0],
 		};
 
-		CHECK_VK(vkCreateRenderPass(Mulcan::g_device, &render_pass_info, nullptr, &Mulcan::main_pass), Mulcan::MulcanResult::M_RENDERPASS_ERROR);
+		CHECK_VK(vkCreateRenderPass(Mulcan::VKContext::g_device, &render_pass_info, nullptr, &Mulcan::Render::main_pass), Mulcan::MulcanResult::M_RENDERPASS_ERROR);
 		return Mulcan::MulcanResult::M_SUCCESS;
 	}
 
@@ -253,23 +258,23 @@ namespace
 			.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 			.pNext = nullptr,
 			.flags = 0,
-			.renderPass = Mulcan::main_pass,
-			.width = Mulcan::g_window_extend.width,
-			.height = Mulcan::g_window_extend.height,
+			.renderPass = Mulcan::Render::main_pass,
+			.width = Mulcan::Settings::g_window_extend.width,
+			.height = Mulcan::Settings::g_window_extend.height,
 			.layers = 1 };
 
-		Mulcan::g_main_framebuffers.resize(Mulcan::g_swapchain_images.size());
-		for (int i = 0; i < Mulcan::g_swapchain_images.size(); i++)
+		Mulcan::Render::g_main_framebuffers.resize(Mulcan::Render::g_swapchain_images.size());
+		for (int i = 0; i < Mulcan::Render::g_swapchain_images.size(); i++)
 		{
 			std::array<VkImageView, 2> attachments{};
 
-			attachments[0] = Mulcan::g_swapchain_image_views[i];
-			attachments[1] = Mulcan::g_depth_image_view;
+			attachments[0] = Mulcan::Render::g_swapchain_image_views[i];
+			attachments[1] = Mulcan::Render::g_depth_image_view;
 
 			fb_info.attachmentCount = static_cast<uint32_t>(attachments.size());
 			fb_info.pAttachments = attachments.data();
 
-			CHECK_VK(vkCreateFramebuffer(Mulcan::g_device, &fb_info, nullptr, &Mulcan::g_main_framebuffers[i]), Mulcan::MulcanResult::M_FRAMEBUFFER_INIT_ERROR);
+			CHECK_VK(vkCreateFramebuffer(Mulcan::VKContext::g_device, &fb_info, nullptr, &Mulcan::Render::g_main_framebuffers[i]), Mulcan::MulcanResult::M_FRAMEBUFFER_INIT_ERROR);
 		}
 
 		return Mulcan::MulcanResult::M_SUCCESS;
@@ -278,12 +283,12 @@ namespace
 	Mulcan::MulcanResult initializeTransferBuffer()
 	{
 		auto fence_info = MulcanInfos::createFenceInfo();
-		CHECK_VK(vkCreateFence(Mulcan::g_device, &fence_info, nullptr, &Mulcan::buffer_transfer.fence), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
-		auto command_pool_info = MulcanInfos::createCommandPoolInfo(Mulcan::g_queue_family_index);
-		CHECK_VK(vkCreateCommandPool(Mulcan::g_device, &command_pool_info, nullptr, &Mulcan::buffer_transfer.pool), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+		CHECK_VK(vkCreateFence(Mulcan::VKContext::g_device, &fence_info, nullptr, &Mulcan::buffer_transfer.fence), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+		auto command_pool_info = MulcanInfos::createCommandPoolInfo(Mulcan::VKContext::g_queue_family_index);
+		CHECK_VK(vkCreateCommandPool(Mulcan::VKContext::g_device, &command_pool_info, nullptr, &Mulcan::buffer_transfer.pool), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
 
 		auto command_buffer_info = MulcanInfos::createCommandBufferAllocateInfo(Mulcan::buffer_transfer.pool, 1);
-		CHECK_VK(vkAllocateCommandBuffers(Mulcan::g_device, &command_buffer_info, &Mulcan::buffer_transfer.cmd), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+		CHECK_VK(vkAllocateCommandBuffers(Mulcan::VKContext::g_device, &command_buffer_info, &Mulcan::buffer_transfer.cmd), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
 
 		return Mulcan::MulcanResult::M_SUCCESS;
 	}
@@ -293,8 +298,10 @@ namespace
 Mulcan::MulcanResult Mulcan::initialize(GLFWwindow*& window)
 {
 	initializeVulkan(window);
-	// TODO: Macro for no Depth;
-	initializeDepthImages();
+	if (Mulcan::Settings::g_has_depth)
+	{
+		initializeDepthImages();
+	}
 	initializeCommands();
 	initializeRenderPass();
 	initializeFrameBuffer();
@@ -322,7 +329,7 @@ void Mulcan::runTransferBufferCommand()
 
 	CHECK_VK_LOG(vkEndCommandBuffer(cmd), "Could not end command buffer");
 
-	vkResetFences(Mulcan::g_device, 1, &Mulcan::buffer_transfer.fence);
+	vkResetFences(Mulcan::VKContext::g_device, 1, &Mulcan::buffer_transfer.fence);
 
 	VkSubmitInfo info = {};
 	info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -336,20 +343,20 @@ void Mulcan::runTransferBufferCommand()
 	info.signalSemaphoreCount = 0;
 	info.pSignalSemaphores = nullptr;
 
-	CHECK_VK_LOG(vkQueueSubmit(Mulcan::g_queue, 1, &info, Mulcan::buffer_transfer.fence), "Could not submit transfer command");
+	CHECK_VK_LOG(vkQueueSubmit(Mulcan::VKContext::g_queue, 1, &info, Mulcan::buffer_transfer.fence), "Could not submit transfer command");
 
-	vkWaitForFences(Mulcan::g_device, 1, &Mulcan::buffer_transfer.fence, true, UINT32_MAX);
+	vkWaitForFences(Mulcan::VKContext::g_device, 1, &Mulcan::buffer_transfer.fence, true, UINT32_MAX);
 
-	vkResetCommandPool(Mulcan::g_device, Mulcan::buffer_transfer.pool, 0);
+	vkResetCommandPool(Mulcan::VKContext::g_device, Mulcan::buffer_transfer.pool, 0);
 }
 
 // TODO: remove allocations.
 void Mulcan::beginFrame()
 {
-	CHECK_VK_LOG(vkWaitForFences(Mulcan::g_device, 1, &Mulcan::getCurrFrame().render_fence, true, UINT64_MAX), "Wait fence error.");
-	CHECK_VK_LOG(vkResetFences(Mulcan::g_device, 1, &Mulcan::getCurrFrame().render_fence), "Reset Fence error");
+	CHECK_VK_LOG(vkWaitForFences(Mulcan::VKContext::g_device, 1, &Mulcan::getCurrFrame().render_fence, true, UINT64_MAX), "Wait fence error.");
+	CHECK_VK_LOG(vkResetFences(Mulcan::VKContext::g_device, 1, &Mulcan::getCurrFrame().render_fence), "Reset Fence error");
 
-	CHECK_VK_LOG(vkAcquireNextImageKHR(Mulcan::g_device, Mulcan::g_swapchain, UINT64_MAX, Mulcan::getCurrFrame().swapchain_semaphore, nullptr, &Mulcan::g_swapchain_image_index), "Acquire swapchain image error");
+	CHECK_VK_LOG(vkAcquireNextImageKHR(Mulcan::VKContext::g_device, Mulcan::VKContext::g_swapchain, UINT64_MAX, Mulcan::getCurrFrame().swapchain_semaphore, nullptr, &Mulcan::Render::g_swapchain_image_index), "Acquire swapchain image error");
 
 	CHECK_VK_LOG(vkResetCommandBuffer(Mulcan::getCurrFrame().render_cmd, 0), "Could not reset command buffer");
 
@@ -362,11 +369,11 @@ void Mulcan::beginFrame()
 
 	VkRenderPassBeginInfo main_renderpass_info{
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-		.renderPass = Mulcan::main_pass,
-		.framebuffer = Mulcan::g_main_framebuffers[g_swapchain_image_index],
+		.renderPass = Mulcan::Render::main_pass,
+		.framebuffer = Mulcan::Render::g_main_framebuffers[Mulcan::Render::g_swapchain_image_index],
 		.renderArea = {
 			.offset = {0, 0},
-			.extent = Mulcan::g_window_extend},
+			.extent = Mulcan::Settings::g_window_extend},
 		.clearValueCount = 2,
 		.pClearValues = &clear_value[0] };
 
@@ -375,15 +382,15 @@ void Mulcan::beginFrame()
 	vkCmdBeginRenderPass(Mulcan::getCurrFrame().render_cmd, &main_renderpass_info, VK_SUBPASS_CONTENTS_INLINE);
 
 	VkViewport viewport{
-		.width = static_cast<float>(Mulcan::g_window_extend.width),
-		.height = static_cast<float>(Mulcan::g_window_extend.height),
+		.width = static_cast<float>(Mulcan::Settings::g_window_extend.width),
+		.height = static_cast<float>(Mulcan::Settings::g_window_extend.height),
 		.minDepth = 0.0f,
 		.maxDepth = 1.0f,
 	};
 
 	VkRect2D scissor{
 		.offset = {0, 0},
-		.extent = Mulcan::g_window_extend };
+		.extent = Mulcan::Settings::g_window_extend };
 
 	vkCmdSetViewport(Mulcan::getCurrFrame().render_cmd, 0, 1, &viewport);
 	vkCmdSetScissor(Mulcan::getCurrFrame().render_cmd, 0, 1, &scissor);
@@ -408,29 +415,29 @@ void Mulcan::endFrame()
 		.signalSemaphoreCount = 1,
 		.pSignalSemaphores = &Mulcan::getCurrFrame().render_semaphore };
 
-	CHECK_VK_LOG(vkQueueSubmit(Mulcan::g_queue, 1, &submit_info, Mulcan::getCurrFrame().render_fence), "Could not submit command buffer");
+	CHECK_VK_LOG(vkQueueSubmit(Mulcan::VKContext::g_queue, 1, &submit_info, Mulcan::getCurrFrame().render_fence), "Could not submit command buffer");
 
 	VkPresentInfoKHR present_info{
 		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 		.waitSemaphoreCount = 1,
 		.pWaitSemaphores = &Mulcan::getCurrFrame().render_semaphore,
 		.swapchainCount = 1,
-		.pSwapchains = &Mulcan::g_swapchain,
-		.pImageIndices = &Mulcan::g_swapchain_image_index };
+		.pSwapchains = &Mulcan::VKContext::g_swapchain,
+		.pImageIndices = &Mulcan::Render::g_swapchain_image_index };
 
-	CHECK_VK_LOG(vkQueuePresentKHR(Mulcan::g_queue, &present_info), "Could not Present.");
+	CHECK_VK_LOG(vkQueuePresentKHR(Mulcan::VKContext::g_queue, &present_info), "Could not Present.");
 
-	Mulcan::framecount++;
+	Mulcan::Render::framecount++;
 }
 
 void Mulcan::setVsync(bool value)
 {
-	Mulcan::g_vsync = value;
+	Mulcan::Settings::g_vsync = value;
 }
 
 void Mulcan::setImgui(bool value)
 {
-	Mulcan::g_imgui = value;
+	Mulcan::Settings::g_imgui = value;
 }
 
 [[nodiscard]]
@@ -444,7 +451,7 @@ VkPipelineLayout Mulcan::buildPipelineLayout(const VkPushConstantRange& range, u
 	info.pSetLayouts = &layout;
 
 	VkPipelineLayout pipeline_layout;
-	CHECK_VK_LOG(vkCreatePipelineLayout(Mulcan::g_device, &info, nullptr, &pipeline_layout), "Could not create pipeline layout.");
+	CHECK_VK_LOG(vkCreatePipelineLayout(Mulcan::VKContext::g_device, &info, nullptr, &pipeline_layout), "Could not create pipeline layout.");
 
 	return pipeline_layout;
 }
@@ -518,10 +525,10 @@ VkPipeline Mulcan::buildPipeline(const Mulcan::NewPipelineData& new_pipeline_dat
 	info.pColorBlendState = &color_blend_state;
 
 	VkPipeline pipeline;
-	CHECK_VK_LOG(vkCreateGraphicsPipelines(Mulcan::g_device, nullptr, 1, &info, nullptr, &pipeline), "Could not create pipeline.");
+	CHECK_VK_LOG(vkCreateGraphicsPipelines(Mulcan::VKContext::g_device, nullptr, 1, &info, nullptr, &pipeline), "Could not create pipeline.");
 
-	vkDestroyShaderModule(Mulcan::g_device, new_pipeline_data.vertex_shader, nullptr);
-	vkDestroyShaderModule(Mulcan::g_device, new_pipeline_data.fragment_shader, nullptr);
+	vkDestroyShaderModule(Mulcan::VKContext::g_device, new_pipeline_data.vertex_shader, nullptr);
+	vkDestroyShaderModule(Mulcan::VKContext::g_device, new_pipeline_data.fragment_shader, nullptr);
 
 	return pipeline;
 }
@@ -544,7 +551,7 @@ VkCommandBuffer Mulcan::getCurrCommand()
 
 VkRenderPass Mulcan::getMainPass()
 {
-	return Mulcan::main_pass;
+	return Mulcan::Render::main_pass;
 }
 
 bool Mulcan::loadShaderModule(const char* filePath, VkShaderModule* out_shader_module)
@@ -574,7 +581,7 @@ bool Mulcan::loadShaderModule(const char* filePath, VkShaderModule* out_shader_m
 	createInfo.pCode = buffer.data();
 
 	VkShaderModule shaderModule;
-	if (vkCreateShaderModule(Mulcan::g_device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
+	if (vkCreateShaderModule(Mulcan::VKContext::g_device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS)
 	{
 		return false;
 	}
@@ -586,27 +593,27 @@ bool Mulcan::loadShaderModule(const char* filePath, VkShaderModule* out_shader_m
 void Mulcan::shutdown()
 {
 
-	for (auto& framebuffer : Mulcan::g_main_framebuffers)
+	for (auto& framebuffer : Mulcan::Render::g_main_framebuffers)
 	{
-		vkDestroyFramebuffer(Mulcan::g_device, framebuffer, nullptr);
+		vkDestroyFramebuffer(Mulcan::VKContext::g_device, framebuffer, nullptr);
 	}
 
-	vkDestroyRenderPass(Mulcan::g_device, Mulcan::main_pass, nullptr);
-	for (auto& frame : frames)
+	vkDestroyRenderPass(Mulcan::VKContext::g_device, Mulcan::Render::main_pass, nullptr);
+	for (auto& frame : Render::frames)
 	{
-		vkDestroyCommandPool(Mulcan::g_device, frame.render_pool, nullptr);
-		vkDestroyFence(Mulcan::g_device, frame.render_fence, nullptr);
-		vkDestroySemaphore(Mulcan::g_device, frame.render_semaphore, nullptr);
-		vkDestroySemaphore(Mulcan::g_device, frame.swapchain_semaphore, nullptr);
+		vkDestroyCommandPool(Mulcan::VKContext::g_device, frame.render_pool, nullptr);
+		vkDestroyFence(Mulcan::VKContext::g_device, frame.render_fence, nullptr);
+		vkDestroySemaphore(Mulcan::VKContext::g_device, frame.render_semaphore, nullptr);
+		vkDestroySemaphore(Mulcan::VKContext::g_device, frame.swapchain_semaphore, nullptr);
 	}
-	for (auto& view : Mulcan::g_swapchain_image_views)
+	for (auto& view : Mulcan::Render::g_swapchain_image_views)
 	{
-		vkDestroyImageView(Mulcan::g_device, view, nullptr);
+		vkDestroyImageView(Mulcan::VKContext::g_device, view, nullptr);
 	}
-	vmaDestroyAllocator(Mulcan::g_vma_allocator);
-	vkDestroySwapchainKHR(Mulcan::g_device, Mulcan::g_swapchain, nullptr);
-	vkDestroyDevice(Mulcan::g_device, nullptr);
-	vkDestroySurfaceKHR(Mulcan::g_instance, Mulcan::g_surface, nullptr);
-	vkb::destroy_debug_utils_messenger(Mulcan::g_instance, Mulcan::g_debug_messenger, nullptr);
-	vkDestroyInstance(Mulcan::g_instance, nullptr);
+	vmaDestroyAllocator(Mulcan::VKContext::g_vma_allocator);
+	vkDestroySwapchainKHR(Mulcan::VKContext::g_device, Mulcan::VKContext::g_swapchain, nullptr);
+	vkDestroyDevice(Mulcan::VKContext::g_device, nullptr);
+	vkDestroySurfaceKHR(Mulcan::VKContext::g_instance, Mulcan::VKContext::g_surface, nullptr);
+	vkb::destroy_debug_utils_messenger(Mulcan::VKContext::g_instance, Mulcan::VKContext::g_debug_messenger, nullptr);
+	vkDestroyInstance(Mulcan::VKContext::g_instance, nullptr);
 }
