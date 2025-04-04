@@ -24,14 +24,14 @@ namespace Mulcan
 } // namespace Mulcan
 
 #define CHECK_VK(res, error_enum) \
-    if (res != VK_SUCCESS)        \
-    {                             \
-        return error_enum;        \
-    }
+	if (res != VK_SUCCESS)        \
+	{                             \
+		return error_enum;        \
+	}
 
-#define CHECK_VK_LOG(res, message)                  \
-    if (res != VK_SUCCESS)                         \
-    {                                              \
-        spdlog::error("Vulkan error: {}: {}", #res, message); \
-		abort(); \
-    }
+#define CHECK_VK_LOG(res, message)                            \
+	if (res != VK_SUCCESS)                                    \
+	{                                                         \
+		spdlog::error("Vulkan error: {}: {}", #res, message); \
+		abort();                                              \
+	}
