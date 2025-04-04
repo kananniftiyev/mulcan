@@ -55,8 +55,7 @@ endif(WIN32)
 
 if(UNIX)
   target_include_directories(mulcan PRIVATE
-    ${vma_SOURCE_DIR}/include
-  )
+    ${vma_SOURCE_DIR}/include  )
   target_link_libraries(mulcan PRIVATE
     Vulkan
     glfw
