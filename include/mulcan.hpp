@@ -1,6 +1,5 @@
 #pragma once
 
-#include "mulcan_errors.hpp"
 #include "mulcan_infos.hpp"
 #include <array>
 #include <fstream>
@@ -18,6 +17,25 @@
 #include <vk_mem_alloc.h>
 #endif // _UNIX
 #include <vulkan/vulkan.h>
+#include <spdlog/spdlog.h>
+#include <fstream>
+
+#define CHECK_VK_LOG(res)                                                                      \
+	if (res != VK_SUCCESS)                                                                     \
+	{                                                                                          \
+		std::ofstream log_stream("vk_error_log.txt", std::ios::app);                           \
+		if (log_stream.is_open())                                                              \
+		{                                                                                      \
+			log_stream << "Vulkan error: " << #res << " | File: " << __FILE__                  \
+					   << " | Line: " << __LINE__ << " | Function: " << __func__ << std::endl; \
+			log_stream.close();                                                                \
+		}                                                                                      \
+		else                                                                                   \
+		{                                                                                      \
+			spdlog::error("Failed to open log file: vk_error_log.txt");                        \
+		}                                                                                      \
+		abort();                                                                               \
+	}
 
 namespace Mulcan
 {
@@ -83,7 +101,7 @@ namespace Mulcan
 	extern VmaAllocator g_vma_allocator;
 
 	// Init Functions
-	MulcanResult initialize(GLFWwindow *&window);
+	void initialize(GLFWwindow *&window);
 
 	// Render Functions
 	void runTransferBufferCommand();
@@ -98,7 +116,7 @@ namespace Mulcan
 
 	VkPipelineLayout buildPipelineLayout(const VkPushConstantRange &range, uint32_t range_count, uint32_t layout_count, const VkDescriptorSetLayout &layout);
 	VkPipeline buildPipeline(const Mulcan::NewPipelineData &new_pipeline_data);
-	MulcanResult addTransferBuffer(const Mulcan::TransferBuffer &transfer_buffer);
+	bool addTransferBuffer(const Mulcan::TransferBuffer &transfer_buffer);
 
 	// TODO: Remove template.
 	template <typename T>
@@ -119,7 +137,7 @@ namespace Mulcan
 
 		AllocatedBuffer staging_buffer;
 
-		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::g_vma_allocator, &buffer_info, &vma_alloc_info, &staging_buffer.buffer, &staging_buffer.allocation, nullptr), "Could not create transfer Buffer");
+		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::g_vma_allocator, &buffer_info, &vma_alloc_info, &staging_buffer.buffer, &staging_buffer.allocation, nullptr));
 
 		void *s_data;
 		vmaMapMemory(Mulcan::g_vma_allocator, staging_buffer.allocation, &s_data);
@@ -139,7 +157,7 @@ namespace Mulcan
 
 		AllocatedBuffer gpu_buffer;
 
-		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::g_vma_allocator, &gpu_buffer_info, &vma_alloc_info, &gpu_buffer.buffer, &gpu_buffer.allocation, nullptr), "Could not create gpu buffer");
+		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::g_vma_allocator, &gpu_buffer_info, &vma_alloc_info, &gpu_buffer.buffer, &gpu_buffer.allocation, nullptr));
 
 		TransferBuffer tb{};
 		tb.src = staging_buffer.buffer;

@@ -56,7 +56,7 @@ namespace Mulcan
 
 namespace
 {
-	Mulcan::MulcanResult initializeVulkan(GLFWwindow *&window)
+	void initializeVulkan(GLFWwindow *&window)
 	{
 		vkb::InstanceBuilder instance_builder;
 		auto inst_ret = instance_builder.request_validation_layers()
@@ -70,7 +70,7 @@ namespace
 		Mulcan::VKContext::g_instance = vkb_inst.instance;
 		Mulcan::VKContext::g_debug_messenger = vkb_inst.debug_messenger;
 
-		CHECK_VK(glfwCreateWindowSurface(Mulcan::VKContext::g_instance, window, nullptr, &Mulcan::VKContext::g_surface), Mulcan::MulcanResult::M_UNKNOWN_ERROR);
+		CHECK_VK_LOG(glfwCreateWindowSurface(Mulcan::VKContext::g_instance, window, nullptr, &Mulcan::VKContext::g_surface));
 
 		vkb::PhysicalDeviceSelector selector{vkb_inst};
 		vkb::PhysicalDevice physical_device = selector
@@ -113,12 +113,10 @@ namespace
 		allocator_create_info.instance = Mulcan::VKContext::g_instance;
 
 		auto res = vmaCreateAllocator(&allocator_create_info, &Mulcan::VKContext::g_vma_allocator);
-		CHECK_VK(res, Mulcan::MulcanResult::M_VMA_ERROR);
-
-		return Mulcan::MulcanResult::M_SUCCESS;
+		CHECK_VK_LOG(res);
 	}
 
-	Mulcan::MulcanResult initializeDepthImages()
+	void initializeDepthImages()
 	{
 		Mulcan::Render::g_depth_format = VK_FORMAT_D32_SFLOAT;
 
@@ -140,7 +138,7 @@ namespace
 		depth_alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 		depth_alloc_info.memoryTypeBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-		CHECK_VK(vmaCreateImage(Mulcan::VKContext::g_vma_allocator, &depth_image_info, &depth_alloc_info, &Mulcan::Render::g_depth_image.image, &Mulcan::Render::g_depth_image.allocation, nullptr), Mulcan::MulcanResult::M_INIT_ERROR);
+		CHECK_VK_LOG(vmaCreateImage(Mulcan::VKContext::g_vma_allocator, &depth_image_info, &depth_alloc_info, &Mulcan::Render::g_depth_image.image, &Mulcan::Render::g_depth_image.allocation, nullptr));
 		VkImageViewCreateInfo depth_image_view_info{};
 		depth_image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		depth_image_view_info.image = Mulcan::Render::g_depth_image.image;
@@ -152,10 +150,10 @@ namespace
 		depth_image_view_info.subresourceRange.baseArrayLayer = 0;
 		depth_image_view_info.subresourceRange.layerCount = 1;
 
-		CHECK_VK(vkCreateImageView(Mulcan::VKContext::g_device, &depth_image_view_info, nullptr, &Mulcan::Render::g_depth_image_view), Mulcan::MulcanResult::M_INIT_ERROR);
+		CHECK_VK_LOG(vkCreateImageView(Mulcan::VKContext::g_device, &depth_image_view_info, nullptr, &Mulcan::Render::g_depth_image_view));
 	}
 
-	Mulcan::MulcanResult initializeCommands()
+	void initializeCommands()
 	{
 		auto fence_info = MulcanInfos::createFenceInfo();
 		auto semaphore_info = MulcanInfos::createSemaphoreInfo();
@@ -163,23 +161,21 @@ namespace
 		for (size_t i = 0; i < Mulcan::FRAME_OVERLAP; i++)
 		{
 			auto command_pool_info = MulcanInfos::createCommandPoolInfo(Mulcan::VKContext::g_queue_family_index);
-			CHECK_VK(vkCreateCommandPool(Mulcan::VKContext::g_device, &command_pool_info, nullptr, &Mulcan::Render::frames[i].render_pool), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+			CHECK_VK_LOG(vkCreateCommandPool(Mulcan::VKContext::g_device, &command_pool_info, nullptr, &Mulcan::Render::frames[i].render_pool));
 
 			auto command_buffer_info = MulcanInfos::createCommandBufferAllocateInfo(Mulcan::Render::frames[i].render_pool, 1);
-			CHECK_VK(vkAllocateCommandBuffers(Mulcan::VKContext::g_device, &command_buffer_info, &Mulcan::Render::frames[i].render_cmd), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+			CHECK_VK_LOG(vkAllocateCommandBuffers(Mulcan::VKContext::g_device, &command_buffer_info, &Mulcan::Render::frames[i].render_cmd));
 
-			CHECK_VK(vkCreateFence(Mulcan::VKContext::g_device, &fence_info, nullptr, &Mulcan::Render::frames[i].render_fence), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+			CHECK_VK_LOG(vkCreateFence(Mulcan::VKContext::g_device, &fence_info, nullptr, &Mulcan::Render::frames[i].render_fence))
 
-			CHECK_VK(vkCreateSemaphore(Mulcan::VKContext::g_device, &semaphore_info, nullptr, &Mulcan::Render::frames[i].swapchain_semaphore), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
-			CHECK_VK(vkCreateSemaphore(Mulcan::VKContext::g_device, &semaphore_info, nullptr, &Mulcan::Render::frames[i].render_semaphore), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+			CHECK_VK_LOG(vkCreateSemaphore(Mulcan::VKContext::g_device, &semaphore_info, nullptr, &Mulcan::Render::frames[i].swapchain_semaphore));
+			CHECK_VK_LOG(vkCreateSemaphore(Mulcan::VKContext::g_device, &semaphore_info, nullptr, &Mulcan::Render::frames[i].render_semaphore));
 		}
-
-		return Mulcan::MulcanResult::M_SUCCESS;
 	}
 
 	// TODO: depth attachment
 	// TODO: abstract renderpass creation.
-	Mulcan::MulcanResult initializeRenderPass()
+	void initializeRenderPass()
 	{
 		VkAttachmentDescription color_attachment{
 			.format = VK_FORMAT_B8G8R8A8_UNORM,
@@ -223,11 +219,11 @@ namespace
 			.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT};
 
 		VkSubpassDependency depth_dependency = {};
-		depth_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-		depth_dependency.dstSubpass = 0;
-		depth_dependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		depth_dependency.srcSubpass = VK_SUBPASS_EXTERNAL;																		// index of the subpass we're dependant on.
+		depth_dependency.dstSubpass = 0;																						// index to the current subpass.
+		depth_dependency.srcStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT; // Stages needs to be finshed within srcSubpass before dstSubpass start.
 		depth_dependency.srcAccessMask = 0;
-		depth_dependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT;
+		depth_dependency.dstStageMask = VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT | VK_PIPELINE_STAGE_LATE_FRAGMENT_TESTS_BIT; // dstStageMask tells Vulkan which stages in the destination subpass must wait until the stages listed in srcStageMask are done.
 		depth_dependency.dstAccessMask = VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
 
 		std::array<VkAttachmentDescription, 2> attachmenets;
@@ -248,11 +244,10 @@ namespace
 			.pDependencies = &dependencies[0],
 		};
 
-		CHECK_VK(vkCreateRenderPass(Mulcan::VKContext::g_device, &render_pass_info, nullptr, &Mulcan::Render::main_pass), Mulcan::MulcanResult::M_RENDERPASS_ERROR);
-		return Mulcan::MulcanResult::M_SUCCESS;
+		CHECK_VK_LOG(vkCreateRenderPass(Mulcan::VKContext::g_device, &render_pass_info, nullptr, &Mulcan::Render::main_pass));
 	}
 
-	Mulcan::MulcanResult initializeFrameBuffer()
+	void initializeFrameBuffer()
 	{
 		VkFramebufferCreateInfo fb_info{
 			.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
@@ -274,28 +269,24 @@ namespace
 			fb_info.attachmentCount = static_cast<uint32_t>(attachments.size());
 			fb_info.pAttachments = attachments.data();
 
-			CHECK_VK(vkCreateFramebuffer(Mulcan::VKContext::g_device, &fb_info, nullptr, &Mulcan::Render::g_main_framebuffers[i]), Mulcan::MulcanResult::M_FRAMEBUFFER_INIT_ERROR);
+			CHECK_VK_LOG(vkCreateFramebuffer(Mulcan::VKContext::g_device, &fb_info, nullptr, &Mulcan::Render::g_main_framebuffers[i]));
 		}
-
-		return Mulcan::MulcanResult::M_SUCCESS;
 	}
 
-	Mulcan::MulcanResult initializeTransferBuffer()
+	void initializeTransferBuffer()
 	{
 		auto fence_info = MulcanInfos::createFenceInfo();
-		CHECK_VK(vkCreateFence(Mulcan::VKContext::g_device, &fence_info, nullptr, &Mulcan::buffer_transfer.fence), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+		CHECK_VK_LOG(vkCreateFence(Mulcan::VKContext::g_device, &fence_info, nullptr, &Mulcan::buffer_transfer.fence));
 		auto command_pool_info = MulcanInfos::createCommandPoolInfo(Mulcan::VKContext::g_queue_family_index);
-		CHECK_VK(vkCreateCommandPool(Mulcan::VKContext::g_device, &command_pool_info, nullptr, &Mulcan::buffer_transfer.pool), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
+		CHECK_VK_LOG(vkCreateCommandPool(Mulcan::VKContext::g_device, &command_pool_info, nullptr, &Mulcan::buffer_transfer.pool));
 
 		auto command_buffer_info = MulcanInfos::createCommandBufferAllocateInfo(Mulcan::buffer_transfer.pool, 1);
-		CHECK_VK(vkAllocateCommandBuffers(Mulcan::VKContext::g_device, &command_buffer_info, &Mulcan::buffer_transfer.cmd), Mulcan::MulcanResult::M_COMMAND_INIT_ERROR);
-
-		return Mulcan::MulcanResult::M_SUCCESS;
+		CHECK_VK_LOG(vkAllocateCommandBuffers(Mulcan::VKContext::g_device, &command_buffer_info, &Mulcan::buffer_transfer.cmd));
 	}
 
 }
 
-Mulcan::MulcanResult Mulcan::initialize(GLFWwindow *&window)
+void Mulcan::initialize(GLFWwindow *&window)
 {
 	initializeVulkan(window);
 	if (Mulcan::Settings::g_has_depth)
@@ -315,7 +306,7 @@ void Mulcan::runTransferBufferCommand()
 
 	auto cmd_info = MulcanInfos::createCommandBufferBeginInfo(0);
 
-	CHECK_VK_LOG(vkBeginCommandBuffer(cmd, &cmd_info), "Could not start transfer command");
+	CHECK_VK_LOG(vkBeginCommandBuffer(cmd, &cmd_info));
 
 	VkBufferCopy copy;
 	copy.dstOffset = 0;
@@ -328,7 +319,7 @@ void Mulcan::runTransferBufferCommand()
 		Mulcan::g_transfer_buffers.pop();
 	}
 
-	CHECK_VK_LOG(vkEndCommandBuffer(cmd), "Could not end command buffer");
+	CHECK_VK_LOG(vkEndCommandBuffer(cmd));
 
 	vkResetFences(Mulcan::VKContext::g_device, 1, &Mulcan::buffer_transfer.fence);
 
@@ -344,7 +335,7 @@ void Mulcan::runTransferBufferCommand()
 	info.signalSemaphoreCount = 0;
 	info.pSignalSemaphores = nullptr;
 
-	CHECK_VK_LOG(vkQueueSubmit(Mulcan::VKContext::g_queue, 1, &info, Mulcan::buffer_transfer.fence), "Could not submit transfer command");
+	CHECK_VK_LOG(vkQueueSubmit(Mulcan::VKContext::g_queue, 1, &info, Mulcan::buffer_transfer.fence));
 
 	vkWaitForFences(Mulcan::VKContext::g_device, 1, &Mulcan::buffer_transfer.fence, true, UINT32_MAX);
 
@@ -354,12 +345,12 @@ void Mulcan::runTransferBufferCommand()
 // TODO: remove allocations.
 void Mulcan::beginFrame()
 {
-	CHECK_VK_LOG(vkWaitForFences(Mulcan::VKContext::g_device, 1, &Mulcan::getCurrFrame().render_fence, true, UINT64_MAX), "Wait fence error.");
-	CHECK_VK_LOG(vkResetFences(Mulcan::VKContext::g_device, 1, &Mulcan::getCurrFrame().render_fence), "Reset Fence error");
+	CHECK_VK_LOG(vkWaitForFences(Mulcan::VKContext::g_device, 1, &Mulcan::getCurrFrame().render_fence, true, UINT64_MAX));
+	CHECK_VK_LOG(vkResetFences(Mulcan::VKContext::g_device, 1, &Mulcan::getCurrFrame().render_fence));
 
-	CHECK_VK_LOG(vkAcquireNextImageKHR(Mulcan::VKContext::g_device, Mulcan::VKContext::g_swapchain, UINT64_MAX, Mulcan::getCurrFrame().swapchain_semaphore, nullptr, &Mulcan::Render::g_swapchain_image_index), "Acquire swapchain image error");
+	CHECK_VK_LOG(vkAcquireNextImageKHR(Mulcan::VKContext::g_device, Mulcan::VKContext::g_swapchain, UINT64_MAX, Mulcan::getCurrFrame().swapchain_semaphore, nullptr, &Mulcan::Render::g_swapchain_image_index));
 
-	CHECK_VK_LOG(vkResetCommandBuffer(Mulcan::getCurrFrame().render_cmd, 0), "Could not reset command buffer");
+	CHECK_VK_LOG(vkResetCommandBuffer(Mulcan::getCurrFrame().render_cmd, 0));
 
 	auto render_cmd_info = MulcanInfos::createCommandBufferBeginInfo(0);
 
@@ -416,7 +407,7 @@ void Mulcan::endFrame()
 		.signalSemaphoreCount = 1,
 		.pSignalSemaphores = &Mulcan::getCurrFrame().render_semaphore};
 
-	CHECK_VK_LOG(vkQueueSubmit(Mulcan::VKContext::g_queue, 1, &submit_info, Mulcan::getCurrFrame().render_fence), "Could not submit command buffer");
+	CHECK_VK_LOG(vkQueueSubmit(Mulcan::VKContext::g_queue, 1, &submit_info, Mulcan::getCurrFrame().render_fence));
 
 	VkPresentInfoKHR present_info{
 		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
@@ -426,7 +417,7 @@ void Mulcan::endFrame()
 		.pSwapchains = &Mulcan::VKContext::g_swapchain,
 		.pImageIndices = &Mulcan::Render::g_swapchain_image_index};
 
-	CHECK_VK_LOG(vkQueuePresentKHR(Mulcan::VKContext::g_queue, &present_info), "Could not Present.");
+	CHECK_VK_LOG(vkQueuePresentKHR(Mulcan::VKContext::g_queue, &present_info));
 
 	Mulcan::Render::framecount++;
 }
@@ -452,7 +443,7 @@ VkPipelineLayout Mulcan::buildPipelineLayout(const VkPushConstantRange &range, u
 	info.pSetLayouts = &layout;
 
 	VkPipelineLayout pipeline_layout;
-	CHECK_VK_LOG(vkCreatePipelineLayout(Mulcan::VKContext::g_device, &info, nullptr, &pipeline_layout), "Could not create pipeline layout.");
+	CHECK_VK_LOG(vkCreatePipelineLayout(Mulcan::VKContext::g_device, &info, nullptr, &pipeline_layout));
 
 	return pipeline_layout;
 }
@@ -526,7 +517,7 @@ VkPipeline Mulcan::buildPipeline(const Mulcan::NewPipelineData &new_pipeline_dat
 	info.pColorBlendState = &color_blend_state;
 
 	VkPipeline pipeline;
-	CHECK_VK_LOG(vkCreateGraphicsPipelines(Mulcan::VKContext::g_device, nullptr, 1, &info, nullptr, &pipeline), "Could not create pipeline.");
+	CHECK_VK_LOG(vkCreateGraphicsPipelines(Mulcan::VKContext::g_device, nullptr, 1, &info, nullptr, &pipeline));
 
 	vkDestroyShaderModule(Mulcan::VKContext::g_device, new_pipeline_data.vertex_shader, nullptr);
 	vkDestroyShaderModule(Mulcan::VKContext::g_device, new_pipeline_data.fragment_shader, nullptr);
@@ -534,15 +525,15 @@ VkPipeline Mulcan::buildPipeline(const Mulcan::NewPipelineData &new_pipeline_dat
 	return pipeline;
 }
 
-Mulcan::MulcanResult Mulcan::addTransferBuffer(const Mulcan::TransferBuffer &transfer_buffer)
+bool Mulcan::addTransferBuffer(const Mulcan::TransferBuffer &transfer_buffer)
 {
 	if (transfer_buffer.buffer_size == 0 || transfer_buffer.src == VK_NULL_HANDLE || transfer_buffer.dst == VK_NULL_HANDLE)
 	{
-		return Mulcan::MulcanResult::M_EMPTY_VARS_OR_BUFFERS;
+		return false;
 	}
 	Mulcan::g_transfer_buffers.push(transfer_buffer);
 
-	return Mulcan::MulcanResult::M_SUCCESS;
+	return true;
 }
 
 VkCommandBuffer Mulcan::getCurrCommand()
