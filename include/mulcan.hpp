@@ -86,7 +86,7 @@ namespace Mulcan
 		size_t buffer_size;
 	};
 
-	struct NewPipelineData
+	struct NewPipelineDescription
 	{
 		VkShaderModule vertex_shader;
 		VkShaderModule fragment_shader;
@@ -115,12 +115,12 @@ namespace Mulcan
 	// Helper funcs
 
 	VkPipelineLayout buildPipelineLayout(const VkPushConstantRange &range, uint32_t range_count, uint32_t layout_count, const VkDescriptorSetLayout &layout);
-	VkPipeline buildPipeline(const Mulcan::NewPipelineData &new_pipeline_data);
+	VkPipeline buildPipeline(const Mulcan::NewPipelineDescription &new_pipeline_data); // TODO: Pipeline desc data
 	bool addTransferBuffer(const Mulcan::TransferBuffer &transfer_buffer);
 
 	// TODO: Remove template.
 	template <typename T>
-	TransferBuffer createTransferBuffer(std::vector<T> data, VkBufferUsageFlags flag)
+	VkBuffer createTransferBuffer(std::vector<T> data, VkBufferUsageFlags flag)
 	{
 
 		const auto size = sizeof(T) * data.size();
@@ -136,7 +136,6 @@ namespace Mulcan
 		vma_alloc_info.memoryTypeBits = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
 		AllocatedBuffer staging_buffer;
-
 		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::g_vma_allocator, &buffer_info, &vma_alloc_info, &staging_buffer.buffer, &staging_buffer.allocation, nullptr));
 
 		void *s_data;
@@ -163,7 +162,14 @@ namespace Mulcan
 		tb.src = staging_buffer.buffer;
 		tb.dst = gpu_buffer.buffer;
 		tb.buffer_size = size;
-		return tb;
+
+		auto res_add = addTransferBuffer(tb);
+		if (res_add)
+		{
+			abort();
+		}
+
+		return gpu_buffer.buffer;
 	}
 
 	// Getter funcs

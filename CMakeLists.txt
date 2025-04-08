@@ -1,5 +1,5 @@
 cmake_minimum_required (VERSION 3.30)
-project(mulcan VERSION 0.1.0)
+project(mulcanProject VERSION 0.1.0)
 
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -28,6 +28,7 @@ if(UNIX)
   )
 
   FetchContent_MakeAvailable(vk-bootstrap VulkanMemoryAllocator)
+
 endif(UNIX)
 
 if(WIN32)
@@ -37,9 +38,24 @@ endif(WIN32)
 
 add_library (mulcan STATIC ${SRC_FILES} ${HEADER_FILES})
 
-target_include_directories(mulcan PRIVATE
-  ${CMAKE_CURRENT_SOURCE_DIR}/include
-  )
+add_executable(test_runner
+    tests/main.cpp
+)
+
+if(UNIX)
+  target_include_directories(mulcan PRIVATE ${vk-bootstrap_SOURCE_DIR}/src)
+endif(UNIX)
+
+
+target_link_libraries(test_runner PRIVATE mulcan)
+
+target_include_directories(mulcan
+  PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include         # public API
+  PRIVATE ${vk-bootstrap_SOURCE_DIR}/src             # implementation only
+  PRIVATE ${VulkanMemoryAllocator_SOURCE_DIR}/include
+)
+
+target_link_libraries(test_runner PRIVATE mulcan)
 
 if (WIN32)
   target_link_libraries(mulcan PRIVATE

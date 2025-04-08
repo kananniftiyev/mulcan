@@ -33,7 +33,7 @@ namespace Mulcan
 		VkFormat g_swapchain_format;
 		VkFormat g_depth_format;
 		VkRenderPass main_pass;
-		std::array<FrameData, FRAME_OVERLAP> frames;
+		std::array<FrameData, 2> frames;
 		std::vector<VkFramebuffer> g_main_framebuffers;
 		AllocatedImage g_depth_image;
 		VkImageView g_depth_image_view;
@@ -166,7 +166,7 @@ namespace
 			auto command_buffer_info = MulcanInfos::createCommandBufferAllocateInfo(Mulcan::Render::frames[i].render_pool, 1);
 			CHECK_VK_LOG(vkAllocateCommandBuffers(Mulcan::VKContext::g_device, &command_buffer_info, &Mulcan::Render::frames[i].render_cmd));
 
-			CHECK_VK_LOG(vkCreateFence(Mulcan::VKContext::g_device, &fence_info, nullptr, &Mulcan::Render::frames[i].render_fence))
+			CHECK_VK_LOG(vkCreateFence(Mulcan::VKContext::g_device, &fence_info, nullptr, &Mulcan::Render::frames[i].render_fence));
 
 			CHECK_VK_LOG(vkCreateSemaphore(Mulcan::VKContext::g_device, &semaphore_info, nullptr, &Mulcan::Render::frames[i].swapchain_semaphore));
 			CHECK_VK_LOG(vkCreateSemaphore(Mulcan::VKContext::g_device, &semaphore_info, nullptr, &Mulcan::Render::frames[i].render_semaphore));
@@ -451,7 +451,7 @@ VkPipelineLayout Mulcan::buildPipelineLayout(const VkPushConstantRange &range, u
 // TODO: Caching support.
 // TODO: Seperate shader stages.
 [[nodiscard]]
-VkPipeline Mulcan::buildPipeline(const Mulcan::NewPipelineData &new_pipeline_data)
+VkPipeline Mulcan::buildPipeline(const Mulcan::NewPipelineDescription &new_pipeline_data)
 {
 	std::array<VkPipelineShaderStageCreateInfo, 2> shader_stages;
 
