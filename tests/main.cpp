@@ -50,7 +50,7 @@ int main()
 
     glfwMakeContextCurrent(window);
 
-    Mulcan::initialize();
+    Mulcan::initialize(window);
 
     VkShaderModule vert, frag;
 
@@ -79,12 +79,26 @@ int main()
 
     Mulcan::runTransferBufferCommand();
 
-    VkPushConstantRange pushConstantRange{};
-    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT; // Specifies the shader stage
-    pushConstantRange.offset = 0;                              // Start at the beginning of the push constant range
-    pushConstantRange.size = sizeof(float) * 16;               // Assuming a 4x4 matrix, 16 floats
-
     auto layout = Mulcan::buildPipelineLayout({}, 0, 0, VK_NULL_HANDLE);
+
+    VkVertexInputBindingDescription vertex_input_binding{};
+    vertex_input_binding.binding = 0;
+    vertex_input_binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
+    vertex_input_binding.stride = sizeof(Mulcan::Vertex);
+
+    std::array<VkVertexInputAttributeDescription, 2> input_attributes;
+
+    // position binding
+    input_attributes[0].binding = 0;
+    input_attributes[0].location = 0;
+    input_attributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
+    input_attributes[0].offset = offsetof(Mulcan::Vertex, Mulcan::Vertex::position);
+
+    // color bindigs
+    input_attributes[1].binding = 0;
+    input_attributes[1].location = 1;
+    input_attributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
+    input_attributes[1].offset = offsetof(Mulcan::Vertex, Mulcan::Vertex::color);
 
     Mulcan::NewPipelineDescription info{};
 
@@ -92,8 +106,10 @@ int main()
     info.fragment_shader = frag;
     info.renderpass = Mulcan::getMainPass();
     info.pipeline_layout = layout;
+    info.input_attributes = input_attributes;
+    info.binding_description = vertex_input_binding;
 
-    Mulcan::buildPipeline(info);
+    auto p = Mulcan::buildPipeline(info);
 
     while (!glfwWindowShouldClose(window))
     {

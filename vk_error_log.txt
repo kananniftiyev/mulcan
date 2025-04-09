@@ -1,0 +1,3 @@
+Vulkan error: vmaCreateImage(Mulcan::g_vma_allocator, &depth_image_info, &depth_alloc_info, &Mulcan::Render::g_depth_image.image, &Mulcan::Render::g_depth_image.allocation, nullptr) | File: ../src/mulcan.cpp | Line: 142 | Function: initializeDepthImages
+Vulkan error: vmaCreateImage(Mulcan::g_vma_allocator, &depth_image_info, &depth_alloc_info, &Mulcan::Render::g_depth_image.image, &Mulcan::Render::g_depth_image.allocation, nullptr) | File: ../src/mulcan.cpp | Line: 142 | Function: initializeDepthImages
+Vulkan error: vmaCreateImage(Mulcan::g_vma_allocator, &depth_image_info, &depth_alloc_info, &Mulcan::Render::g_depth_image.image, &Mulcan::Render::g_depth_image.allocation, nullptr) | File: ../src/mulcan.cpp | Line: 142 | Function: initializeDepthImages

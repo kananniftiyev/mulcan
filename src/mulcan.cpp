@@ -23,8 +23,9 @@ namespace Mulcan
 		VkSurfaceKHR g_surface;
 		VkSwapchainKHR g_swapchain;
 		VkDebugUtilsMessengerEXT g_debug_messenger;
-		VmaAllocator g_vma_allocator;
 	}
+
+	VmaAllocator g_vma_allocator;
 
 	namespace Render
 	{
@@ -112,7 +113,7 @@ namespace
 		allocator_create_info.device = Mulcan::VKContext::g_device;
 		allocator_create_info.instance = Mulcan::VKContext::g_instance;
 
-		auto res = vmaCreateAllocator(&allocator_create_info, &Mulcan::VKContext::g_vma_allocator);
+		auto res = vmaCreateAllocator(&allocator_create_info, &Mulcan::g_vma_allocator);
 		CHECK_VK_LOG(res);
 	}
 
@@ -138,7 +139,7 @@ namespace
 		depth_alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 		depth_alloc_info.memoryTypeBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
-		CHECK_VK_LOG(vmaCreateImage(Mulcan::VKContext::g_vma_allocator, &depth_image_info, &depth_alloc_info, &Mulcan::Render::g_depth_image.image, &Mulcan::Render::g_depth_image.allocation, nullptr));
+		CHECK_VK_LOG(vmaCreateImage(Mulcan::g_vma_allocator, &depth_image_info, &depth_alloc_info, &Mulcan::Render::g_depth_image.image, &Mulcan::Render::g_depth_image.allocation, nullptr));
 		VkImageViewCreateInfo depth_image_view_info{};
 		depth_image_view_info.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 		depth_image_view_info.image = Mulcan::Render::g_depth_image.image;
@@ -602,7 +603,7 @@ void Mulcan::shutdown()
 	{
 		vkDestroyImageView(Mulcan::VKContext::g_device, view, nullptr);
 	}
-	vmaDestroyAllocator(Mulcan::VKContext::g_vma_allocator);
+	vmaDestroyAllocator(Mulcan::g_vma_allocator);
 	vkDestroySwapchainKHR(Mulcan::VKContext::g_device, Mulcan::VKContext::g_swapchain, nullptr);
 	vkDestroyDevice(Mulcan::VKContext::g_device, nullptr);
 	vkDestroySurfaceKHR(Mulcan::VKContext::g_instance, Mulcan::VKContext::g_surface, nullptr);
