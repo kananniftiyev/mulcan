@@ -1,0 +1,6 @@
+[submodule "submodules/vma"]
+	path = submodules/vma
+	url = https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator.git
+[submodule "submodules/vk-bootstrap"]
+	path = submodules/vk-bootstrap
+	url = https://github.com/charles-lunarg/vk-bootstrap.git
