@@ -122,18 +122,21 @@ namespace
 		Mulcan::Render::g_depth_format = VK_FORMAT_D32_SFLOAT;
 
 		VkExtent3D depth_extend{};
-		depth_extend.depth = 1.0f;
+		depth_extend.depth = 1;
 		depth_extend.width = Mulcan::Settings::g_window_extend.width;
 		depth_extend.height = Mulcan::Settings::g_window_extend.height;
 
 		VkImageCreateInfo depth_image_info{};
 		depth_image_info.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
+		depth_image_info.pNext = nullptr;
 		depth_image_info.imageType = VK_IMAGE_TYPE_2D;
 		depth_image_info.extent = depth_extend;
 		depth_image_info.format = Mulcan::Render::g_depth_format;
 		depth_image_info.samples = VK_SAMPLE_COUNT_1_BIT;
 		depth_image_info.tiling = VK_IMAGE_TILING_OPTIMAL;
 		depth_image_info.usage = VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		depth_image_info.mipLevels = 1;
+		depth_image_info.arrayLayers = 1;
 
 		VmaAllocationCreateInfo depth_alloc_info{};
 		depth_alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
@@ -208,7 +211,7 @@ namespace
 
 		VkSubpassDescription subpass{
 			.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
-			.colorAttachmentCount = 2,
+			.colorAttachmentCount = 1,
 			.pColorAttachments = &color_attachment_refence,
 			.pDepthStencilAttachment = &depth_attachment_reference};
 
@@ -237,7 +240,7 @@ namespace
 
 		VkRenderPassCreateInfo render_pass_info{
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-			.attachmentCount = dependencies.size(),
+			.attachmentCount = attachmenets.size(),
 			.pAttachments = &attachmenets[0],
 			.subpassCount = 1,
 			.pSubpasses = &subpass,
@@ -585,6 +588,7 @@ bool Mulcan::loadShaderModule(const char *filePath, VkShaderModule *out_shader_m
 // TODO: deletion queue
 void Mulcan::shutdown()
 {
+	vkDeviceWaitIdle(Mulcan::VKContext::g_device);
 
 	for (auto &framebuffer : Mulcan::Render::g_main_framebuffers)
 	{

@@ -4,3 +4,5 @@ bin
 .vs
 .vscode
 exec
+vk_error_log.txt
+builddir

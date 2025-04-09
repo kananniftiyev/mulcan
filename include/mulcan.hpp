@@ -20,21 +20,13 @@
 #include <spdlog/spdlog.h>
 #include <fstream>
 
-#define CHECK_VK_LOG(res)                                                                      \
-	if (res != VK_SUCCESS)                                                                     \
-	{                                                                                          \
-		std::ofstream log_stream("vk_error_log.txt", std::ios::app);                           \
-		if (log_stream.is_open())                                                              \
-		{                                                                                      \
-			log_stream << "Vulkan error: " << #res << " | File: " << __FILE__                  \
-					   << " | Line: " << __LINE__ << " | Function: " << __func__ << std::endl; \
-			log_stream.close();                                                                \
-		}                                                                                      \
-		else                                                                                   \
-		{                                                                                      \
-			spdlog::error("Failed to open log file: vk_error_log.txt");                        \
-		}                                                                                      \
-		abort();                                                                               \
+#define CHECK_VK_LOG(res)                                                      \
+	if (res != VK_SUCCESS)                                                     \
+	{                                                                          \
+		spdlog::error("Vulkan error: {} | File: {} | Line: {} | Function: {}", \
+					  #res, __FILE__, __LINE__, __func__);                     \
+		std::cout << "Hello";                                                  \
+		abort();                                                               \
 	}
 
 namespace Mulcan
@@ -164,8 +156,9 @@ namespace Mulcan
 		tb.buffer_size = size;
 
 		auto res_add = addTransferBuffer(tb);
-		if (res_add)
+		if (!res_add)
 		{
+			spdlog::error("Could not add to transfer buffer");
 			abort();
 		}
 
