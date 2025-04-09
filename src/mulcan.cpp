@@ -263,7 +263,7 @@ namespace
 			.layers = 1};
 
 		Mulcan::Render::g_main_framebuffers.resize(Mulcan::Render::g_swapchain_images.size());
-		for (int i = 0; i < Mulcan::Render::g_swapchain_images.size(); i++)
+		for (size_t i = 0; i < Mulcan::Render::g_swapchain_images.size(); i++)
 		{
 			std::array<VkImageView, 2> attachments{};
 
@@ -301,6 +301,27 @@ void Mulcan::initialize(GLFWwindow *&window)
 	initializeRenderPass();
 	initializeFrameBuffer();
 	initializeTransferBuffer();
+}
+
+void transitionImageToPresentLayout(VkCommandBuffer cmd, VkImage image, const VkQueue &queue)
+{
+	VkImageMemoryBarrier info{};
+	info.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+	info.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	info.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+	info.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // Previous layout
+	info.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;		   // New layout
+	info.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	info.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+	info.image = image;
+	info.subresourceRange = {};
+	info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+	info.subresourceRange.baseMipLevel = 0;
+	info.subresourceRange.levelCount = 1;
+	info.subresourceRange.baseArrayLayer = 0;
+	info.subresourceRange.layerCount = 1;
+
+	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &info);
 }
 
 // TODO: Better way to get our dst buffer.
@@ -397,6 +418,9 @@ void Mulcan::endFrame()
 {
 
 	vkCmdEndRenderPass(Mulcan::getCurrFrame().render_cmd);
+
+	transitionImageToPresentLayout(Mulcan::getCurrFrame().render_cmd, Mulcan::Render::g_swapchain_images[Mulcan::Render::g_swapchain_image_index], Mulcan::VKContext::g_queue);
+
 	vkEndCommandBuffer(Mulcan::getCurrFrame().render_cmd);
 
 	VkPipelineStageFlags wait_stage_mask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
@@ -505,6 +529,14 @@ VkPipeline Mulcan::buildPipeline(const Mulcan::NewPipelineDescription &new_pipel
 	color_blend_state.attachmentCount = 1;
 	color_blend_state.pAttachments = &blend_attachment_state;
 
+	VkPipelineDepthStencilStateCreateInfo depth_state{};
+	depth_state.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO;
+	depth_state.depthTestEnable = VK_TRUE;
+	depth_state.depthWriteEnable = VK_TRUE;
+	depth_state.depthCompareOp = VK_COMPARE_OP_LESS;
+	depth_state.depthBoundsTestEnable = VK_FALSE;
+	depth_state.stencilTestEnable = VK_FALSE;
+
 	VkGraphicsPipelineCreateInfo info{};
 	info.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
 	info.stageCount = static_cast<uint32_t>(shader_stages.size());
@@ -519,6 +551,7 @@ VkPipeline Mulcan::buildPipeline(const Mulcan::NewPipelineDescription &new_pipel
 	info.renderPass = new_pipeline_data.renderpass;
 	info.pNext = nullptr;
 	info.pColorBlendState = &color_blend_state;
+	info.pDepthStencilState = &depth_state;
 
 	VkPipeline pipeline;
 	CHECK_VK_LOG(vkCreateGraphicsPipelines(Mulcan::VKContext::g_device, nullptr, 1, &info, nullptr, &pipeline));

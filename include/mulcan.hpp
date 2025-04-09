@@ -5,6 +5,8 @@
 #include <fstream>
 #include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+#include <glm/gtc/matrix_transform.hpp>
+#include <glm/gtc/type_ptr.hpp>
 #include <iostream>
 #include <queue>
 #include <string>
@@ -88,6 +90,12 @@ namespace Mulcan
 
 		VkRenderPass renderpass;
 		VkPipelineLayout pipeline_layout;
+	};
+
+	struct MeshPushConstants
+	{
+		glm::vec4 data;
+		glm::mat4 render_matrix;
 	};
 
 	extern VmaAllocator g_vma_allocator;

@@ -1,6 +1,7 @@
 #include <iostream>
 #include "mulcan.hpp"
 #include <GLFW/glfw3.h>
+#include <glm/glm.hpp>
 
 const std::vector<Mulcan::Vertex> vertices = {
     // Front face
@@ -75,11 +76,14 @@ int main()
     auto vb = Mulcan::createTransferBuffer<Mulcan::Vertex>(vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     auto ib = Mulcan::createTransferBuffer<uint32_t>(indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
-    std::cout << "create transfer buffers success\n";
-
     Mulcan::runTransferBufferCommand();
 
-    auto layout = Mulcan::buildPipelineLayout({}, 0, 0, VK_NULL_HANDLE);
+    VkPushConstantRange pushConstantRange = {};
+    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;  // Add this range for the vertex shader
+    pushConstantRange.offset = 0;                               // Offset into the push constant space
+    pushConstantRange.size = sizeof(Mulcan::MeshPushConstants); // Size of the push constants
+
+    auto layout = Mulcan::buildPipelineLayout(pushConstantRange, 1, 0, VK_NULL_HANDLE);
 
     VkVertexInputBindingDescription vertex_input_binding{};
     vertex_input_binding.binding = 0;
@@ -113,6 +117,7 @@ int main()
 
     while (!glfwWindowShouldClose(window))
     {
+        static int framenumber = 0;
         Mulcan::beginFrame();
 
         VkDeviceSize offsets[1]{0};
@@ -122,10 +127,27 @@ int main()
         vkCmdBindVertexBuffers(Mulcan::getCurrCommand(), 0, 1, &vb, offsets);
         vkCmdBindIndexBuffer(Mulcan::getCurrCommand(), ib, 0, VK_INDEX_TYPE_UINT32);
 
+        glm::vec3 camPos = {0.f, 0.f, -2.f};
+
+        glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
+        // camera projection
+        glm::mat4 projection = glm::perspective(glm::radians(70.f), 800.f / 600.f, 0.1f, 200.0f);
+        projection[1][1] *= -1;
+        // model rotation
+        glm::mat4 model = glm::rotate(glm::mat4{1.0f}, glm::radians(framenumber * 0.4f), glm::vec3(0, 1, 0));
+
+        // calculate final mesh matrix
+        glm::mat4 mesh_matrix = projection * view * model;
+
+        Mulcan::MeshPushConstants constants;
+        constants.render_matrix = mesh_matrix;
+
+        vkCmdPushConstants(Mulcan::getCurrCommand(), layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mulcan::MeshPushConstants), &constants);
+
         vkCmdDrawIndexed(Mulcan::getCurrCommand(), indices.size(), 1, 0, 0, 0);
 
         Mulcan::endFrame();
-
+        framenumber++;
         glfwPollEvents();
     }
 

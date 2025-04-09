@@ -7,8 +7,6 @@ glfw_dep = dependency('glfw3', required: true)
 glm_dep = dependency('glm', required: true)
 spdlog_dep = dependency('spdlog', required: true)
 
-message(meson.current_source_dir())
-
 vma_dep = declare_dependency(include_directories: include_directories('./submodules/vma/include'))
 
 vma_src = files('./submodules/vma/src/VmaUsage.cpp')
