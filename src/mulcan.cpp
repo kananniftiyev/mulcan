@@ -1,4 +1,6 @@
 #define VMA_IMPLEMENTATION
+#define VMA_DEBUG_DETECT_CORRUPTION 1
+#define VMA_DEBUG_MARGIN 16
 #include "mulcan.hpp"
 
 // TODO: recreate the swapchain func.
@@ -49,7 +51,8 @@ namespace Mulcan
 #endif // TRIBLE_BUFFER
 
 	ImmediateSubmitData buffer_transfer;
-	std::queue<TransferBuffer> g_transfer_buffers;
+	std::vector<TransferBuffer> g_transfer_buffers;
+	std::vector<VkBuffer> g_buffer_deletion_list;
 
 	FrameData &getCurrFrame() { return Render::frames[Render::framecount % FRAME_OVERLAP]; }
 
@@ -57,6 +60,11 @@ namespace Mulcan
 
 namespace
 {
+	void initializeContainers()
+	{
+		Mulcan::g_transfer_buffers.reserve(100);
+	}
+
 	void initializeVulkan(SDL_Window *&window)
 	{
 		vkb::InstanceBuilder instance_builder;
@@ -298,6 +306,7 @@ namespace
 
 void Mulcan::initialize(SDL_Window *&window)
 {
+	initializeContainers();
 	initializeVulkan(window);
 	if (Mulcan::Settings::g_has_depth)
 	{
@@ -342,11 +351,10 @@ void Mulcan::runTransferBufferCommand()
 	copy.dstOffset = 0;
 	copy.srcOffset = 0;
 
-	while (!Mulcan::g_transfer_buffers.empty())
+	for (const auto &buf : Mulcan::g_transfer_buffers)
 	{
-		copy.size = Mulcan::g_transfer_buffers.front().buffer_size;
-		vkCmdCopyBuffer(cmd, Mulcan::g_transfer_buffers.front().src, Mulcan::g_transfer_buffers.front().dst, 1, &copy);
-		Mulcan::g_transfer_buffers.pop();
+		copy.size = buf.buffer_size;
+		vkCmdCopyBuffer(cmd, buf.src, buf.dst, 1, &copy);
 	}
 
 	CHECK_VK_LOG(vkEndCommandBuffer(cmd));
@@ -370,6 +378,12 @@ void Mulcan::runTransferBufferCommand()
 	vkWaitForFences(Mulcan::VKContext::g_device, 1, &Mulcan::buffer_transfer.fence, true, UINT32_MAX);
 
 	vkResetCommandPool(Mulcan::VKContext::g_device, Mulcan::buffer_transfer.pool, 0);
+
+	for (auto &buf : Mulcan::g_transfer_buffers)
+	{
+		spdlog::info("Deleted Src buffer, size of buffer: {}", sizeof(buf.buffer_size));
+		vmaDestroyBuffer(Mulcan::g_vma_allocator, buf.src, nullptr);
+	}
 }
 
 // TODO: remove allocations.
@@ -573,7 +587,7 @@ bool Mulcan::addTransferBuffer(const Mulcan::TransferBuffer &transfer_buffer)
 	{
 		return false;
 	}
-	Mulcan::g_transfer_buffers.push(transfer_buffer);
+	Mulcan::g_transfer_buffers.push_back(transfer_buffer);
 
 	return true;
 }
@@ -623,10 +637,30 @@ bool Mulcan::loadShaderModule(const char *filePath, VkShaderModule *out_shader_m
 	return true;
 }
 
+void Mulcan::addDestroyBuffer(VkBuffer &buffer)
+{
+	if (buffer == VK_NULL_HANDLE)
+	{
+		spdlog::error("Buffer is null. Cannot delete null buffers!!!");
+		return;
+	}
+
+	Mulcan::g_buffer_deletion_list.push_back(buffer);
+}
+
 // TODO: deletion queue
 void Mulcan::shutdown()
 {
 	vkDeviceWaitIdle(Mulcan::VKContext::g_device);
+
+	for (auto &buffer : Mulcan::g_buffer_deletion_list)
+	{
+		spdlog::info("destroying buffer");
+		vmaDestroyBuffer(Mulcan::g_vma_allocator, buffer, nullptr);
+	}
+
+	vmaDestroyImage(Mulcan::g_vma_allocator, Mulcan::Render::g_depth_image.image, nullptr);
+	spdlog::info("deleted image");
 
 	for (auto &framebuffer : Mulcan::Render::g_main_framebuffers)
 	{

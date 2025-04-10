@@ -113,16 +113,17 @@ namespace Mulcan
 	void setVsync(bool value);
 	void setImgui(bool value);
 
-	// Helper funcs
+	// Pipeline
 	VkPipelineLayout buildPipelineLayout(const VkPushConstantRange &range, uint32_t range_count, uint32_t layout_count, const VkDescriptorSetLayout &layout);
 	VkPipeline buildPipeline(const Mulcan::NewPipelineDescription &new_pipeline_data);
+
+	// Buffers
 	bool addTransferBuffer(const Mulcan::TransferBuffer &transfer_buffer);
 
 	// TODO: Remove template.
 	template <typename T>
 	VkBuffer createTransferBuffer(std::vector<T> data, VkBufferUsageFlags flag)
 	{
-
 		const auto size = sizeof(T) * data.size();
 
 		// CPU side
@@ -179,5 +180,6 @@ namespace Mulcan
 
 	bool loadShaderModule(const char *filePath, VkShaderModule *out_shader_module);
 
+	void addDestroyBuffer(VkBuffer &buffer);
 	void shutdown();
 }

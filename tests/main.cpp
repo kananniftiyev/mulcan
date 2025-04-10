@@ -163,6 +163,8 @@ int main()
         framenumber++;
     }
 
+    Mulcan::addDestroyBuffer(vb);
+    Mulcan::addDestroyBuffer(ib);
     Mulcan::shutdown();
 
     SDL_DestroyWindow(window);
