@@ -57,7 +57,7 @@ namespace Mulcan
 
 namespace
 {
-	void initializeVulkan(GLFWwindow *&window)
+	void initializeVulkan(SDL_Window *&window)
 	{
 		vkb::InstanceBuilder instance_builder;
 		auto inst_ret = instance_builder.request_validation_layers()
@@ -71,7 +71,13 @@ namespace
 		Mulcan::VKContext::g_instance = vkb_inst.instance;
 		Mulcan::VKContext::g_debug_messenger = vkb_inst.debug_messenger;
 
-		CHECK_VK_LOG(glfwCreateWindowSurface(Mulcan::VKContext::g_instance, window, nullptr, &Mulcan::VKContext::g_surface));
+		auto sdl_res = SDL_Vulkan_CreateSurface(window, Mulcan::VKContext::g_instance, nullptr, &Mulcan::VKContext::g_surface);
+
+		if (!sdl_res)
+		{
+			spdlog::error("Could not create window");
+			abort();
+		}
 
 		vkb::PhysicalDeviceSelector selector{vkb_inst};
 		vkb::PhysicalDevice physical_device = selector
@@ -290,7 +296,7 @@ namespace
 
 }
 
-void Mulcan::initialize(GLFWwindow *&window)
+void Mulcan::initialize(SDL_Window *&window)
 {
 	initializeVulkan(window);
 	if (Mulcan::Settings::g_has_depth)
@@ -309,8 +315,8 @@ void transitionImageToPresentLayout(VkCommandBuffer cmd, VkImage image, const Vk
 	info.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 	info.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
 	info.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-	info.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL; // Previous layout
-	info.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;		   // New layout
+	info.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+	info.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 	info.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	info.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 	info.image = image;
@@ -324,7 +330,6 @@ void transitionImageToPresentLayout(VkCommandBuffer cmd, VkImage image, const Vk
 	vkCmdPipelineBarrier(cmd, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &info);
 }
 
-// TODO: Better way to get our dst buffer.
 void Mulcan::runTransferBufferCommand()
 {
 	auto cmd = Mulcan::buffer_transfer.cmd;

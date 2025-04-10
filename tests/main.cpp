@@ -1,7 +1,7 @@
 #include <iostream>
 #include "mulcan.hpp"
-#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
+#include <SDL3/SDL.h>
 
 const std::vector<Mulcan::Vertex> vertices = {
     // Front face
@@ -37,19 +37,15 @@ const std::vector<uint32_t> indices = {
 
 int main()
 {
-    glfwInit();
 
-    glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-    glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
+    SDL_Init(SDL_INIT_VIDEO);
+    SDL_WindowFlags window_flags = (SDL_WindowFlags)(SDL_WINDOW_VULKAN);
 
-    auto window = glfwCreateWindow(800, 600, "title", nullptr, nullptr);
-
-    if (!window)
-    {
-        return -1;
-    }
-
-    glfwMakeContextCurrent(window);
+    auto window = SDL_CreateWindow(
+        "Vulkan Engine",
+        800,
+        600,
+        window_flags);
 
     Mulcan::initialize(window);
 
@@ -115,8 +111,19 @@ int main()
 
     auto p = Mulcan::buildPipeline(info);
 
-    while (!glfwWindowShouldClose(window))
+    bool quit = false;
+    SDL_Event event;
+    while (!quit)
     {
+        while (SDL_PollEvent(&event))
+        {
+            if (event.type == SDL_EVENT_QUIT)
+            {
+                quit = true;
+            }
+
+            // Handle other events here if necessary
+        }
         static int framenumber = 0;
         Mulcan::beginFrame();
 
@@ -148,8 +155,9 @@ int main()
 
         Mulcan::endFrame();
         framenumber++;
-        glfwPollEvents();
     }
 
     Mulcan::shutdown();
+
+    SDL_DestroyWindow(window);
 }

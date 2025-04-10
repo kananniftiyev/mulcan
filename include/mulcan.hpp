@@ -3,7 +3,6 @@
 #include "mulcan_infos.hpp"
 #include <array>
 #include <fstream>
-#include <GLFW/glfw3.h>
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 #include <glm/gtc/type_ptr.hpp>
@@ -21,6 +20,8 @@
 #include <vulkan/vulkan.h>
 #include <spdlog/spdlog.h>
 #include <fstream>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_vulkan.h>
 
 #define CHECK_VK_LOG(res)                                                      \
 	if (res != VK_SUCCESS)                                                     \
@@ -101,7 +102,7 @@ namespace Mulcan
 	extern VmaAllocator g_vma_allocator;
 
 	// Init Functions
-	void initialize(GLFWwindow *&window);
+	void initialize(SDL_Window *&window);
 
 	// Render Functions
 	void runTransferBufferCommand();
@@ -113,9 +114,8 @@ namespace Mulcan
 	void setImgui(bool value);
 
 	// Helper funcs
-
 	VkPipelineLayout buildPipelineLayout(const VkPushConstantRange &range, uint32_t range_count, uint32_t layout_count, const VkDescriptorSetLayout &layout);
-	VkPipeline buildPipeline(const Mulcan::NewPipelineDescription &new_pipeline_data); // TODO: Pipeline desc data
+	VkPipeline buildPipeline(const Mulcan::NewPipelineDescription &new_pipeline_data);
 	bool addTransferBuffer(const Mulcan::TransferBuffer &transfer_buffer);
 
 	// TODO: Remove template.
