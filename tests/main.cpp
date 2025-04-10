@@ -49,11 +49,11 @@ int main()
 
     auto window = SDL_CreateWindow(
         "Vulkan Engine",
-        800,
-        600,
+        1920,
+        1080,
         window_flags);
 
-    Mulcan::initialize(window);
+    Mulcan::initialize(window, 1920, 1080);
 
     VkShaderModule vert, frag;
 
@@ -117,10 +117,13 @@ int main()
 
     auto p = Mulcan::buildPipeline(info);
 
+    bool fullscreen = false;
     bool quit = false;
     SDL_Event event;
+
     while (!quit)
     {
+        bool eventHandledThisFrame = false;
         while (SDL_PollEvent(&event))
         {
             if (event.type == SDL_EVENT_QUIT || (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE))
@@ -128,8 +131,33 @@ int main()
                 quit = true;
             }
 
-            // Handle other events here if necessary
+            if (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_F)
+            {
+                fullscreen = !fullscreen;
+
+                SDL_SetWindowFullscreen(window, fullscreen);
+            }
+
+            if (event.type == SDL_EVENT_WINDOW_RESIZED || event.type == SDL_EVENT_WINDOW_PIXEL_SIZE_CHANGED || event.type == SDL_EVENT_WINDOW_METAL_VIEW_RESIZED)
+            {
+
+                int height, width;
+                auto res = SDL_GetWindowSize(window, &width, &height);
+                if (!res)
+                {
+                    std::cout << "could not get window size" << std::endl;
+                }
+
+                Mulcan::recreateSwapchain(width, height);
+                eventHandledThisFrame = true;
+            }
         }
+
+        if (eventHandledThisFrame)
+        {
+            continue;
+        }
+
         static int framenumber = 0;
         Mulcan::beginFrame();
 
@@ -144,7 +172,7 @@ int main()
 
         glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
         // camera projection
-        glm::mat4 projection = glm::perspective(glm::radians(70.f), 800.f / 600.f, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(70.f), 1920.f / 1080.f, 0.1f, 100.0f);
         projection[1][1] *= -1;
         // model rotation
         glm::mat4 model = glm::rotate(glm::mat4{1.0f}, glm::radians(framenumber * 0.4f), glm::vec3(0, 1, 0));

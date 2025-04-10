@@ -102,7 +102,7 @@ namespace Mulcan
 	extern VmaAllocator g_vma_allocator;
 
 	// Init Functions
-	void initialize(SDL_Window *&window);
+	void initialize(SDL_Window *&window, uint32_t width, uint32_t heigth);
 
 	// Render Functions
 	void runTransferBufferCommand();
@@ -179,6 +179,7 @@ namespace Mulcan
 	VkRenderPass getMainPass();
 
 	bool loadShaderModule(const char *filePath, VkShaderModule *out_shader_module);
+	void recreateSwapchain(uint32_t width, uint32_t height);
 
 	void addDestroyBuffer(VkBuffer &buffer);
 	void shutdown();

@@ -60,9 +60,34 @@ namespace Mulcan
 
 namespace
 {
-	void initializeContainers()
+	void initializeSettings(uint32_t width, uint32_t heigth)
 	{
+		// Settings
+		Mulcan::Settings::g_window_extend.width = width;
+		Mulcan::Settings::g_window_extend.height = heigth;
+
+		// containers
 		Mulcan::g_transfer_buffers.reserve(100);
+	}
+
+	void initializeSwapchain()
+	{
+		vkb::SwapchainBuilder swapchainBuilder{Mulcan::VKContext::g_physical_device, Mulcan::VKContext::g_device, Mulcan::VKContext::g_surface};
+
+		Mulcan::Render::g_swapchain_format = VK_FORMAT_B8G8R8A8_UNORM;
+
+		vkb::Swapchain vkb_swapchain = swapchainBuilder
+										   .set_desired_format(VkSurfaceFormatKHR{.format = Mulcan::Render::g_swapchain_format, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
+										   .set_desired_present_mode((Mulcan::Settings::g_vsync) ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
+										   .set_desired_extent(Mulcan::Settings::g_window_extend.width, Mulcan::Settings::g_window_extend.height)
+										   .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
+										   .build()
+										   .value();
+
+		Mulcan::Settings::g_window_extend = vkb_swapchain.extent;
+		Mulcan::VKContext::g_swapchain = vkb_swapchain.swapchain;
+		Mulcan::Render::g_swapchain_images = vkb_swapchain.get_images().value();
+		Mulcan::Render::g_swapchain_image_views = vkb_swapchain.get_image_views().value();
 	}
 
 	void initializeVulkan(SDL_Window *&window)
@@ -100,23 +125,6 @@ namespace
 
 		Mulcan::VKContext::g_device = vkb_device.device;
 		Mulcan::VKContext::g_physical_device = physical_device.physical_device;
-
-		vkb::SwapchainBuilder swapchainBuilder{Mulcan::VKContext::g_physical_device, Mulcan::VKContext::g_device, Mulcan::VKContext::g_surface};
-
-		Mulcan::Render::g_swapchain_format = VK_FORMAT_B8G8R8A8_UNORM;
-
-		vkb::Swapchain vkb_swapchain = swapchainBuilder
-										   .set_desired_format(VkSurfaceFormatKHR{.format = Mulcan::Render::g_swapchain_format, .colorSpace = VK_COLOR_SPACE_SRGB_NONLINEAR_KHR})
-										   .set_desired_present_mode((Mulcan::Settings::g_vsync) ? VK_PRESENT_MODE_FIFO_KHR : VK_PRESENT_MODE_IMMEDIATE_KHR)
-										   .set_desired_extent(800, 600)
-										   .add_image_usage_flags(VK_IMAGE_USAGE_TRANSFER_DST_BIT)
-										   .build()
-										   .value();
-
-		Mulcan::Settings::g_window_extend = vkb_swapchain.extent;
-		Mulcan::VKContext::g_swapchain = vkb_swapchain.swapchain;
-		Mulcan::Render::g_swapchain_images = vkb_swapchain.get_images().value();
-		Mulcan::Render::g_swapchain_image_views = vkb_swapchain.get_image_views().value();
 		Mulcan::VKContext::g_queue = vkb_device.get_queue(vkb::QueueType::graphics).value();
 		Mulcan::VKContext::g_queue_family_index = vkb_device.get_queue_index(vkb::QueueType::graphics).value();
 
@@ -304,9 +312,9 @@ namespace
 
 }
 
-void Mulcan::initialize(SDL_Window *&window)
+void Mulcan::initialize(SDL_Window *&window, uint32_t width, uint32_t heigth)
 {
-	initializeContainers();
+	initializeSettings(width, heigth);
 	initializeVulkan(window);
 	if (Mulcan::Settings::g_has_depth)
 	{
@@ -635,6 +643,18 @@ bool Mulcan::loadShaderModule(const char *filePath, VkShaderModule *out_shader_m
 	}
 	*out_shader_module = shaderModule;
 	return true;
+}
+
+void Mulcan::recreateSwapchain(uint32_t width, uint32_t height)
+{
+	Mulcan::Settings::g_window_extend.width = width;
+	Mulcan::Settings::g_window_extend.height = height;
+	vkDestroySwapchainKHR(Mulcan::VKContext::g_device, Mulcan::VKContext::g_swapchain, nullptr);
+	initializeSwapchain();
+	initializeDepthImages();
+	initializeFrameBuffer();
+
+	spdlog::info("Recreated swapchain");
 }
 
 void Mulcan::addDestroyBuffer(VkBuffer &buffer)
