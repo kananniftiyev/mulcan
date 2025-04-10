@@ -12,7 +12,7 @@ VkCommandPoolCreateInfo MulcanInfos::createCommandPoolInfo(uint32_t queue_family
 }
 
 [[nodiscard]]
-VkCommandBufferAllocateInfo MulcanInfos::createCommandBufferAllocateInfo(VkCommandPool& pool, uint32_t buffer_count)
+VkCommandBufferAllocateInfo MulcanInfos::createCommandBufferAllocateInfo(VkCommandPool &pool, uint32_t buffer_count)
 {
 	return VkCommandBufferAllocateInfo{
 		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
@@ -29,7 +29,7 @@ VkFenceCreateInfo MulcanInfos::createFenceInfo()
 	return VkFenceCreateInfo{
 		.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
 		.pNext = nullptr,
-		.flags = VK_FENCE_CREATE_SIGNALED_BIT };
+		.flags = VK_FENCE_CREATE_SIGNALED_BIT};
 }
 
 [[nodiscard]]
@@ -38,7 +38,7 @@ VkSemaphoreCreateInfo MulcanInfos::createSemaphoreInfo()
 	return VkSemaphoreCreateInfo{
 		.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 		.pNext = nullptr,
-		.flags = 0 };
+		.flags = 0};
 }
 
 [[nodiscard]]
@@ -89,7 +89,7 @@ VkCommandBufferBeginInfo MulcanInfos::createCommandBufferBeginInfo(VkCommandBuff
 }
 
 [[nodiscard]]
-VkPipelineVertexInputStateCreateInfo MulcanInfos::createPipelineVertexInputState(const VkVertexInputBindingDescription& input_binding, const std::array<VkVertexInputAttributeDescription, 2>& input_attributes)
+VkPipelineVertexInputStateCreateInfo MulcanInfos::createPipelineVertexInputState(const VkVertexInputBindingDescription &input_binding, const std::array<VkVertexInputAttributeDescription, 2> &input_attributes)
 {
 	VkPipelineVertexInputStateCreateInfo pipeline_vertex_state{};
 	pipeline_vertex_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
@@ -100,4 +100,3 @@ VkPipelineVertexInputStateCreateInfo MulcanInfos::createPipelineVertexInputState
 
 	return pipeline_vertex_state;
 }
-

@@ -4,36 +4,42 @@
 #include <SDL3/SDL.h>
 
 const std::vector<Mulcan::Vertex> vertices = {
-    // Front face
-    {{-0.5f, -0.5f, 0.5f}, {1.0f, 0.0f, 0.0f}}, // Bottom-left
-    {{0.5f, -0.5f, 0.5f}, {0.0f, 1.0f, 0.0f}},  // Bottom-right
-    {{0.5f, 0.5f, 0.5f}, {0.0f, 0.0f, 1.0f}},   // Top-right
-    {{-0.5f, 0.5f, 0.5f}, {1.0f, 1.0f, 0.0f}},  // Top-left
-    // Back face
-    {{-0.5f, -0.5f, -0.5f}, {1.0f, 0.0f, 1.0f}}, // Bottom-left
-    {{0.5f, -0.5f, -0.5f}, {0.0f, 1.0f, 1.0f}},  // Bottom-right
-    {{0.5f, 0.5f, -0.5f}, {1.0f, 1.0f, 1.0f}},   // Top-right
-    {{-0.5f, 0.5f, -0.5f}, {0.5f, 0.5f, 0.5f}}   // Top-left
+    // Position                     // Color (using arbitrary colors)
+    {{1.0f, 1.0f, -1.0f}, {1.0f, 1.0f, 1.0f}},   // 0: v1 (red)
+    {{1.0f, -1.0f, -1.0f}, {1.0f, 1.0f, 1.0f}},  // 1: v2 (green)
+    {{1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}},    // 2: v3 (blue)
+    {{1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}},   // 3: v4 (yellow)
+    {{-1.0f, 1.0f, -1.0f}, {1.0f, 1.0f, 1.0f}},  // 4: v5 (magenta)
+    {{-1.0f, -1.0f, -1.0f}, {1.0f, 1.0f, 1.0f}}, // 5: v6 (cyan)
+    {{-1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}},   // 6: v7 (white)
+    {{-1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}}   // 7: v8 (gray)
 };
 
+// Indices for the cube faces
 const std::vector<uint32_t> indices = {
-    // Front face
-    0, 1, 2, 0, 2, 3,
+    // Top face (Y+)
+    0, 4, 6,
+    0, 6, 2,
 
-    // Back face
-    4, 5, 6, 4, 6, 7,
+    // Front face (Z+)
+    2, 6, 7,
+    2, 7, 3,
 
-    // Left face
-    4, 0, 3, 4, 3, 7,
+    // Left face (X-)
+    6, 4, 5,
+    6, 5, 7,
 
-    // Right face
-    1, 5, 6, 1, 6, 2,
+    // Bottom face (Y-)
+    3, 7, 5,
+    3, 5, 1,
 
-    // Top face
-    3, 2, 6, 3, 6, 7,
+    // Right face (X+)
+    0, 2, 3,
+    0, 3, 1,
 
-    // Bottom face
-    4, 5, 1, 4, 1, 0};
+    // Back face (Z-)
+    0, 1, 5,
+    0, 5, 4};
 
 int main()
 {
@@ -117,7 +123,7 @@ int main()
     {
         while (SDL_PollEvent(&event))
         {
-            if (event.type == SDL_EVENT_QUIT)
+            if (event.type == SDL_EVENT_QUIT || (event.type == SDL_EVENT_KEY_DOWN && event.key.key == SDLK_ESCAPE))
             {
                 quit = true;
             }
@@ -134,11 +140,11 @@ int main()
         vkCmdBindVertexBuffers(Mulcan::getCurrCommand(), 0, 1, &vb, offsets);
         vkCmdBindIndexBuffer(Mulcan::getCurrCommand(), ib, 0, VK_INDEX_TYPE_UINT32);
 
-        glm::vec3 camPos = {0.f, 0.f, -2.f};
+        glm::vec3 camPos = {0.f, 0.f, -5.f};
 
         glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
         // camera projection
-        glm::mat4 projection = glm::perspective(glm::radians(70.f), 800.f / 600.f, 0.1f, 200.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(70.f), 800.f / 600.f, 0.1f, 100.0f);
         projection[1][1] *= -1;
         // model rotation
         glm::mat4 model = glm::rotate(glm::mat4{1.0f}, glm::radians(framenumber * 0.4f), glm::vec3(0, 1, 0));
