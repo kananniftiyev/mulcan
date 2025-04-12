@@ -13,6 +13,7 @@ namespace MulcanInfos
 	VkPipelineMultisampleStateCreateInfo createMultisampleStateInfo(VkBool32 sample_shading, VkSampleCountFlagBits sample_count);
 	VkPipelineInputAssemblyStateCreateInfo createInputAssemblyStateInfo();
 	VkCommandBufferBeginInfo createCommandBufferBeginInfo(VkCommandBufferUsageFlags flag);
+	VkPipelineShaderStageCreateInfo createShaderStageInfo(const VkShaderStageFlagBits &pStageFlag, const VkShaderModule &pShaderModule);
 
-	VkPipelineVertexInputStateCreateInfo createPipelineVertexInputState(const VkVertexInputBindingDescription &input_binding, const std::array<VkVertexInputAttributeDescription, 2> &input_attributes);
+	VkPipelineVertexInputStateCreateInfo createPipelineVertexInputState(const VkVertexInputBindingDescription &input_binding, const std::array<VkVertexInputAttributeDescription, 4> &input_attributes);
 } // namespace MulcanInfos

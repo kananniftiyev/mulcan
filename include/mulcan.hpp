@@ -22,15 +22,8 @@
 #include <fstream>
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_vulkan.h>
-
-#define CHECK_VK_LOG(res)                                                      \
-	if (res != VK_SUCCESS)                                                     \
-	{                                                                          \
-		spdlog::error("Vulkan error: {} | File: {} | Line: {} | Function: {}", \
-					  #res, __FILE__, __LINE__, __func__);                     \
-		std::cout << "Hello";                                                  \
-		abort();                                                               \
-	}
+#include "mulkan_macros.hpp"
+#include "pipeline.hpp"
 
 namespace Mulcan
 {
@@ -53,13 +46,6 @@ namespace Mulcan
 		VkFence fence;
 		VkCommandPool pool;
 		VkCommandBuffer cmd;
-	};
-
-	struct Vertex
-	{
-		glm::vec3 position;
-		glm::vec3 color;
-		// glm::vec2 texCoords;
 	};
 
 	// TODO: Rename
@@ -87,7 +73,7 @@ namespace Mulcan
 		VkShaderModule fragment_shader;
 
 		VkVertexInputBindingDescription binding_description;
-		std::array<VkVertexInputAttributeDescription, 2> input_attributes;
+		std::array<VkVertexInputAttributeDescription, 4> input_attributes;
 
 		VkRenderPass renderpass;
 		VkPipelineLayout pipeline_layout;
@@ -99,10 +85,10 @@ namespace Mulcan
 		glm::mat4 render_matrix;
 	};
 
-	extern VmaAllocator g_vma_allocator;
+	extern VmaAllocator gVmaAllocator;
 
 	// Init Functions
-	void initialize(SDL_Window *&window, uint32_t width, uint32_t heigth);
+	void initialize(SDL_Window *&pWindow, uint32_t pWidth, uint32_t pHeight);
 
 	// Render Functions
 	void runTransferBufferCommand();
@@ -113,18 +99,14 @@ namespace Mulcan
 	void setVsync(bool value);
 	void setImgui(bool value);
 
-	// Pipeline
-	VkPipelineLayout buildPipelineLayout(const VkPushConstantRange &range, uint32_t range_count, uint32_t layout_count, const VkDescriptorSetLayout &layout);
-	VkPipeline buildPipeline(const Mulcan::NewPipelineDescription &new_pipeline_data);
-
 	// Buffers
-	bool addTransferBuffer(const Mulcan::TransferBuffer &transfer_buffer);
+	bool addTransferBuffer(const Mulcan::TransferBuffer &pTransferBuffer);
 
 	// TODO: Remove template.
 	template <typename T>
-	VkBuffer createTransferBuffer(std::vector<T> data, VkBufferUsageFlags flag)
+	VkBuffer createTransferBuffer(std::vector<T> pData, VkBufferUsageFlags pFlag)
 	{
-		const auto size = sizeof(T) * data.size();
+		const auto size = sizeof(T) * pData.size();
 
 		// CPU side
 		VkBufferCreateInfo buffer_info{};
@@ -137,27 +119,27 @@ namespace Mulcan
 		vma_alloc_info.memoryTypeBits = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
 
 		AllocatedBuffer staging_buffer;
-		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::g_vma_allocator, &buffer_info, &vma_alloc_info, &staging_buffer.buffer, &staging_buffer.allocation, nullptr));
+		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::gVmaAllocator, &buffer_info, &vma_alloc_info, &staging_buffer.buffer, &staging_buffer.allocation, nullptr));
 
 		void *s_data;
-		vmaMapMemory(Mulcan::g_vma_allocator, staging_buffer.allocation, &s_data);
+		vmaMapMemory(Mulcan::gVmaAllocator, staging_buffer.allocation, &s_data);
 
-		memcpy(s_data, data.data(), size);
+		memcpy(s_data, pData.data(), size);
 
-		vmaUnmapMemory(Mulcan::g_vma_allocator, staging_buffer.allocation);
+		vmaUnmapMemory(Mulcan::gVmaAllocator, staging_buffer.allocation);
 
 		// GPU side
 		VkBufferCreateInfo gpu_buffer_info{};
 		gpu_buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
 		gpu_buffer_info.size = size;
-		gpu_buffer_info.usage = flag | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
+		gpu_buffer_info.usage = pFlag | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
 
 		vma_alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
 		vma_alloc_info.memoryTypeBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
 
 		AllocatedBuffer gpu_buffer;
 
-		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::g_vma_allocator, &gpu_buffer_info, &vma_alloc_info, &gpu_buffer.buffer, &gpu_buffer.allocation, nullptr));
+		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::gVmaAllocator, &gpu_buffer_info, &vma_alloc_info, &gpu_buffer.buffer, &gpu_buffer.allocation, nullptr));
 
 		TransferBuffer tb{};
 		tb.src = staging_buffer.buffer;
@@ -178,9 +160,8 @@ namespace Mulcan
 	VkCommandBuffer getCurrCommand();
 	VkRenderPass getMainPass();
 
-	bool loadShaderModule(const char *filePath, VkShaderModule *out_shader_module);
-	void recreateSwapchain(uint32_t width, uint32_t height);
+	void recreateSwapchain(uint32_t pWidth, uint32_t pHeight);
 
-	void addDestroyBuffer(VkBuffer &buffer);
+	void addDestroyBuffer(VkBuffer &pBuffer);
 	void shutdown();
 }

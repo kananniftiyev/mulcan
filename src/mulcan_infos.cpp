@@ -89,12 +89,27 @@ VkCommandBufferBeginInfo MulcanInfos::createCommandBufferBeginInfo(VkCommandBuff
 }
 
 [[nodiscard]]
-VkPipelineVertexInputStateCreateInfo MulcanInfos::createPipelineVertexInputState(const VkVertexInputBindingDescription &input_binding, const std::array<VkVertexInputAttributeDescription, 2> &input_attributes)
+VkPipelineShaderStageCreateInfo MulcanInfos::createShaderStageInfo(const VkShaderStageFlagBits &pStageFlag, const VkShaderModule &pShaderModule)
+{
+	VkPipelineShaderStageCreateInfo info{};
+	info.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+	info.stage = pStageFlag;
+	info.module = pShaderModule;
+	info.pName = "main";
+	info.pNext = nullptr;
+	info.flags = 0;
+	info.pSpecializationInfo = nullptr;
+
+	return info;
+}
+
+[[nodiscard]]
+VkPipelineVertexInputStateCreateInfo MulcanInfos::createPipelineVertexInputState(const VkVertexInputBindingDescription &input_binding, const std::array<VkVertexInputAttributeDescription, 4> &input_attributes)
 {
 	VkPipelineVertexInputStateCreateInfo pipeline_vertex_state{};
 	pipeline_vertex_state.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO;
 	pipeline_vertex_state.vertexBindingDescriptionCount = 1;
-	pipeline_vertex_state.vertexAttributeDescriptionCount = 2;
+	pipeline_vertex_state.vertexAttributeDescriptionCount = 4;
 	pipeline_vertex_state.pVertexBindingDescriptions = &input_binding;
 	pipeline_vertex_state.pVertexAttributeDescriptions = input_attributes.data();
 

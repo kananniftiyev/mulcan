@@ -4,15 +4,15 @@
 #include <SDL3/SDL.h>
 
 const std::vector<Mulcan::Vertex> vertices = {
-    // Position                     // Color (using arbitrary colors)
-    {{1.0f, 1.0f, -1.0f}, {1.0f, 1.0f, 1.0f}},   // 0: v1 (red)
-    {{1.0f, -1.0f, -1.0f}, {1.0f, 1.0f, 1.0f}},  // 1: v2 (green)
-    {{1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}},    // 2: v3 (blue)
-    {{1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}},   // 3: v4 (yellow)
-    {{-1.0f, 1.0f, -1.0f}, {1.0f, 1.0f, 1.0f}},  // 4: v5 (magenta)
-    {{-1.0f, -1.0f, -1.0f}, {1.0f, 1.0f, 1.0f}}, // 5: v6 (cyan)
-    {{-1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}},   // 6: v7 (white)
-    {{-1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}}   // 7: v8 (gray)
+    // Position                 // Color                // TexCoord           // Normal
+    {{1.0f, 1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},   // 0: v1 (red)
+    {{1.0f, -1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},  // 1: v2 (green)
+    {{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},     // 2: v3 (blue)
+    {{1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},    // 3: v4 (yellow)
+    {{-1.0f, 1.0f, -1.0f}, {1.0f, 0.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},  // 4: v5 (magenta)
+    {{-1.0f, -1.0f, -1.0f}, {0.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}}, // 5: v6 (cyan)
+    {{-1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},    // 6: v7 (white)
+    {{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}}    // 7: v8 (gray)
 };
 
 // Indices for the cube faces
@@ -92,7 +92,7 @@ int main()
     vertex_input_binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
     vertex_input_binding.stride = sizeof(Mulcan::Vertex);
 
-    std::array<VkVertexInputAttributeDescription, 2> input_attributes;
+    std::array<VkVertexInputAttributeDescription, 4> input_attributes;
 
     // position binding
     input_attributes[0].binding = 0;
@@ -105,6 +105,18 @@ int main()
     input_attributes[1].location = 1;
     input_attributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
     input_attributes[1].offset = offsetof(Mulcan::Vertex, Mulcan::Vertex::color);
+
+    // texCords
+    input_attributes[2].binding = 0;
+    input_attributes[2].location = 2;
+    input_attributes[2].format = VK_FORMAT_R32G32_SFLOAT;
+    input_attributes[2].offset = offsetof(Mulcan::Vertex, Mulcan::Vertex::texCoords);
+
+    // normals
+    input_attributes[3].binding = 0;
+    input_attributes[3].location = 3;
+    input_attributes[3].format = VK_FORMAT_R32G32B32_SFLOAT;
+    input_attributes[3].offset = offsetof(Mulcan::Vertex, Mulcan::Vertex::normals);
 
     Mulcan::NewPipelineDescription info{};
 
