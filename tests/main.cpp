@@ -57,23 +57,7 @@ int main()
 
     VkShaderModule vert, frag;
 
-    auto res_v = Mulcan::loadShaderModule("shaders/cube-v.spv", &vert);
-    ;
-    if (!res_v)
-    {
-        std::cout << "Could not load vertex shader\n";
-        abort();
-    }
-
-    res_v = Mulcan::loadShaderModule("shaders/cube-f.spv", &frag);
-
-    if (!res_v)
-    {
-        std::cout << "Could not load frag shader\n";
-        abort();
-    }
-
-    std::cout << "Loaded shaders\n";
+        std::cout << "Loaded shaders\n";
 
     auto vb = Mulcan::createTransferBuffer<Mulcan::Vertex>(vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     auto ib = Mulcan::createTransferBuffer<uint32_t>(indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);

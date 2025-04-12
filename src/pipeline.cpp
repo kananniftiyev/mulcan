@@ -105,6 +105,10 @@ void Mulcan::Pipeline::CreatePipeline(const char *pVertexShaderPath, const char 
     this->mPipelineCount++;
 }
 
+Mulcan::Pipeline::Pipeline(VkDevice &pDevice, VkRenderPass &pRenderPass) : mDevice(pDevice), mRenderPass(pRenderPass)
+{
+}
+
 void Mulcan::Pipeline::CreatePipelineLayout(const std::vector<VkPushConstantRange> &pPushConstants, const std::vector<VkDescriptorSetLayout> &pSetLayouts)
 {
     VkPipelineLayoutCreateInfo info{};

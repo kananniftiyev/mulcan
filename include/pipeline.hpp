@@ -36,12 +36,13 @@ namespace Mulcan
         VkShaderModule createShaderModule(const char *pShaderPath);
 
     public:
-        Pipeline(const VkDevice &pDevice, const VkRenderPass &pRenderPass);
+        Pipeline(VkDevice &pDevice, VkRenderPass &pRenderPass);
 
         void CreatePipelineLayout(const std::vector<VkPushConstantRange> &pPushConstants, const std::vector<VkDescriptorSetLayout> &pSetLayouts);
         void CreatePipeline(const char *pVertexShaderPath, const char *pFragmentShaderPath);
 
         VkPipeline &GetPipeline() { return this->mPipeline; }
+        VkPipelineLayout &GetPipelineLayout() { return this->mPipelineLayout; }
 
         void DestroyPipeline();
     };

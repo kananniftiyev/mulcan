@@ -7,3 +7,4 @@ exec
 vk_error_log.txt
 builddir
 tests
+.idea
