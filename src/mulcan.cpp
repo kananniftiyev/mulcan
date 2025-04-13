@@ -508,6 +508,16 @@ VkRenderPass Mulcan::getMainPass()
 	return Mulcan::Render::gMainPass;
 }
 
+VkDevice &Mulcan::getDevice()
+{
+	return Mulcan::VKContext::gDevice;
+}
+
+VmaAllocator &Mulcan::getAllocator()
+{
+	return Mulcan::gVmaAllocator;
+}
+
 void Mulcan::recreateSwapchain(uint32_t pWidth, uint32_t pHeight)
 {
 	Mulcan::Settings::gWindowExtend.width = pWidth;

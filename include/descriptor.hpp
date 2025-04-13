@@ -14,6 +14,7 @@
 
 namespace Mulcan
 {
+
     struct AllocatedBuffer
     {
         VkBuffer buffer;
@@ -34,23 +35,24 @@ namespace Mulcan
     public:
         DescriptorManager(VmaAllocator &pAllocator, VkDevice &pDevice);
 
-        void CreateDescriptorPool();
-
         void CreateDescriptorLayout(int id, const std::vector<VkDescriptorSetLayoutBinding> &pBindings);
         void CreateDescriptorSet(int id, VkBuffer &pBuffer, size_t pSize);
 
         AllocatedBuffer CreateUniformBuffer(size_t pAllocSize);
 
         template <typename T>
-        void Mulcan::DescriptorManager::UpdateBuffer(AllocatedBuffer *pAllocatedBuffer, T pData)
+        void UpdateBuffer(AllocatedBuffer *pAllocatedBuffer, T pData)
         {
             void *data;
             vmaMapMemory(this->mAllocator, pAllocatedBuffer->allocation, &data);
 
-            memcpy(data, pData, sizeof(T));
+            memcpy(data, &pData, sizeof(T));
 
             vmaUnmapMemory(this->mAllocator, pAllocatedBuffer->allocation);
         }
+
+        VkDescriptorSetLayout &GetDescriptorLayout(int id) { return this->mDescriptorLayoutMap[id]; }
+        VkDescriptorSet &GetDescriptorSet(int id) { return this->mDescriptorSetMap[id]; }
 
         void Cleanup();
     };

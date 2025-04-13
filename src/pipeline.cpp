@@ -1,5 +1,8 @@
 #include "pipeline.hpp"
 
+size_t Mulcan::Pipeline::mPipelineCount = 0;
+size_t Mulcan::Pipeline::mPipelineLayoutCount = 0;
+
 void Mulcan::Pipeline::CreatePipeline(const char *pVertexShaderPath, const char *pFragmentShaderPath)
 {
 
@@ -102,7 +105,7 @@ void Mulcan::Pipeline::CreatePipeline(const char *pVertexShaderPath, const char 
     vkDestroyShaderModule(this->mDevice, vertexShaderModule, nullptr);
     vkDestroyShaderModule(this->mDevice, fragmentShaderModule, nullptr);
 
-    this->mPipelineCount++;
+    mPipelineCount++;
 }
 
 Mulcan::Pipeline::Pipeline(VkDevice &pDevice, VkRenderPass &pRenderPass) : mDevice(pDevice), mRenderPass(pRenderPass)
@@ -120,7 +123,7 @@ void Mulcan::Pipeline::CreatePipelineLayout(const std::vector<VkPushConstantRang
 
     CHECK_VK_LOG(vkCreatePipelineLayout(this->mDevice, &info, nullptr, &this->mPipelineLayout));
 
-    this->mPipelineLayoutCount++;
+    mPipelineLayoutCount++;
 }
 
 VkShaderModule Mulcan::Pipeline::createShaderModule(const char *pShaderPath)

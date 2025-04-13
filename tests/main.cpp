@@ -41,6 +41,13 @@ const std::vector<uint32_t> indices = {
     0, 1, 5,
     0, 5, 4};
 
+struct GPUCameraData
+{
+    glm::mat4 view;
+    glm::mat4 proj;
+    glm::mat4 viewproj;
+};
+
 int main()
 {
 
@@ -49,69 +56,41 @@ int main()
 
     auto window = SDL_CreateWindow(
         "Vulkan Engine",
-        1920,
-        1080,
+        800,
+        600,
         window_flags);
 
     Mulcan::initialize(window, 1920, 1080);
 
-    VkShaderModule vert, frag;
+    auto device = Mulcan::getDevice();
+    auto alloc = Mulcan::getAllocator();
+    auto renderpass = Mulcan::getMainPass();
 
-        std::cout << "Loaded shaders\n";
+    Mulcan::Pipeline pipeline{device, renderpass};
+    Mulcan::DescriptorManager descriptorManager{alloc, device};
 
     auto vb = Mulcan::createTransferBuffer<Mulcan::Vertex>(vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     auto ib = Mulcan::createTransferBuffer<uint32_t>(indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
     Mulcan::runTransferBufferCommand();
 
-    VkPushConstantRange pushConstantRange = {};
-    pushConstantRange.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;  // Add this range for the vertex shader
-    pushConstantRange.offset = 0;                               // Offset into the push constant space
-    pushConstantRange.size = sizeof(Mulcan::MeshPushConstants); // Size of the push constants
+    VkDescriptorSetLayoutBinding bindingOne{};
+    bindingOne.binding = 0;
+    bindingOne.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+    bindingOne.descriptorCount = 1;
+    bindingOne.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-    auto layout = Mulcan::buildPipelineLayout(pushConstantRange, 1, 0, VK_NULL_HANDLE);
+    descriptorManager.CreateDescriptorLayout(1, {bindingOne});
+    auto a = descriptorManager.CreateUniformBuffer(sizeof(GPUCameraData));
+    descriptorManager.CreateDescriptorSet(1, a.buffer, sizeof(GPUCameraData));
 
-    VkVertexInputBindingDescription vertex_input_binding{};
-    vertex_input_binding.binding = 0;
-    vertex_input_binding.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-    vertex_input_binding.stride = sizeof(Mulcan::Vertex);
+    VkPushConstantRange pushConsant{};
+    pushConsant.size = sizeof(Mulcan::MeshPushConstants);
+    pushConsant.offset = 0;
+    pushConsant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-    std::array<VkVertexInputAttributeDescription, 4> input_attributes;
-
-    // position binding
-    input_attributes[0].binding = 0;
-    input_attributes[0].location = 0;
-    input_attributes[0].format = VK_FORMAT_R32G32B32_SFLOAT;
-    input_attributes[0].offset = offsetof(Mulcan::Vertex, Mulcan::Vertex::position);
-
-    // color bindigs
-    input_attributes[1].binding = 0;
-    input_attributes[1].location = 1;
-    input_attributes[1].format = VK_FORMAT_R32G32B32_SFLOAT;
-    input_attributes[1].offset = offsetof(Mulcan::Vertex, Mulcan::Vertex::color);
-
-    // texCords
-    input_attributes[2].binding = 0;
-    input_attributes[2].location = 2;
-    input_attributes[2].format = VK_FORMAT_R32G32_SFLOAT;
-    input_attributes[2].offset = offsetof(Mulcan::Vertex, Mulcan::Vertex::texCoords);
-
-    // normals
-    input_attributes[3].binding = 0;
-    input_attributes[3].location = 3;
-    input_attributes[3].format = VK_FORMAT_R32G32B32_SFLOAT;
-    input_attributes[3].offset = offsetof(Mulcan::Vertex, Mulcan::Vertex::normals);
-
-    Mulcan::NewPipelineDescription info{};
-
-    info.vertex_shader = vert;
-    info.fragment_shader = frag;
-    info.renderpass = Mulcan::getMainPass();
-    info.pipeline_layout = layout;
-    info.input_attributes = input_attributes;
-    info.binding_description = vertex_input_binding;
-
-    auto p = Mulcan::buildPipeline(info);
+    pipeline.CreatePipelineLayout({pushConsant}, {descriptorManager.GetDescriptorLayout(1)});
+    pipeline.CreatePipeline("./shaders/cube-v.spv", "./shaders/cube-f.spv");
 
     bool fullscreen = false;
     bool quit = false;
@@ -159,16 +138,17 @@ int main()
 
         VkDeviceSize offsets[1]{0};
 
-        vkCmdBindPipeline(Mulcan::getCurrCommand(), VK_PIPELINE_BIND_POINT_GRAPHICS, p);
+        vkCmdBindPipeline(Mulcan::getCurrCommand(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.GetPipeline());
 
         vkCmdBindVertexBuffers(Mulcan::getCurrCommand(), 0, 1, &vb, offsets);
         vkCmdBindIndexBuffer(Mulcan::getCurrCommand(), ib, 0, VK_INDEX_TYPE_UINT32);
 
-        glm::vec3 camPos = {0.f, 0.f, -5.f};
+        // camera view
+        glm::vec3 camPos = {0.f, -0.f, -5.f};
 
         glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
         // camera projection
-        glm::mat4 projection = glm::perspective(glm::radians(70.f), 1920.f / 1080.f, 0.1f, 100.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(70.f), 800.f / 600.f, 0.1f, 200.0f);
         projection[1][1] *= -1;
         // model rotation
         glm::mat4 model = glm::rotate(glm::mat4{1.0f}, glm::radians(framenumber * 0.4f), glm::vec3(0, 1, 0));
@@ -177,9 +157,19 @@ int main()
         glm::mat4 mesh_matrix = projection * view * model;
 
         Mulcan::MeshPushConstants constants;
-        constants.render_matrix = mesh_matrix;
+        constants.render_matrix = model;
 
-        vkCmdPushConstants(Mulcan::getCurrCommand(), layout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mulcan::MeshPushConstants), &constants);
+        // // fill a GPU camera data struct
+        GPUCameraData camData;
+        camData.proj = projection;
+        camData.view = view;
+        camData.viewproj = projection * view;
+
+        descriptorManager.UpdateBuffer<GPUCameraData>(&a, camData);
+
+        vkCmdBindDescriptorSets(Mulcan::getCurrCommand(), VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline.GetPipelineLayout(), 0, 1, &descriptorManager.GetDescriptorSet(1), 0, nullptr);
+        // calculate final mesh matrix
+        vkCmdPushConstants(Mulcan::getCurrCommand(), pipeline.GetPipelineLayout(), VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mulcan::MeshPushConstants), &constants);
 
         vkCmdDrawIndexed(Mulcan::getCurrCommand(), indices.size(), 1, 0, 0, 0);
 
@@ -187,6 +177,7 @@ int main()
         framenumber++;
     }
 
+    pipeline.DestroyPipeline();
     Mulcan::addDestroyBuffer(vb);
     Mulcan::addDestroyBuffer(ib);
     Mulcan::shutdown();

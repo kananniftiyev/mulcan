@@ -24,6 +24,7 @@
 #include <SDL3/SDL_vulkan.h>
 #include "mulkan_macros.hpp"
 #include "pipeline.hpp"
+#include "descriptor.hpp"
 
 namespace Mulcan
 {
@@ -49,11 +50,6 @@ namespace Mulcan
 	};
 
 	// TODO: Rename
-	struct AllocatedBuffer
-	{
-		VkBuffer buffer;
-		VmaAllocation allocation;
-	};
 
 	struct AllocatedImage
 	{
@@ -159,6 +155,8 @@ namespace Mulcan
 	// Getter funcs
 	VkCommandBuffer getCurrCommand();
 	VkRenderPass getMainPass();
+	VkDevice &getDevice();
+	VmaAllocator &getAllocator();
 
 	void recreateSwapchain(uint32_t pWidth, uint32_t pHeight);
 

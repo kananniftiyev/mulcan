@@ -23,7 +23,12 @@ all_deps = [
     sdl3_dep,
 ]
 
-mulcan_src = files('src/mulcan.cpp', 'src/mulcan_infos.cpp')
+mulcan_src = files(
+    'src/descriptor.cpp',
+    'src/mulcan.cpp',
+    'src/mulcan_infos.cpp',
+    'src/pipeline.cpp',
+)
 
 # Mulcan lib
 mulcan = static_library(

@@ -6,5 +6,6 @@ bin
 exec
 vk_error_log.txt
 builddir
+buildDir
 tests
 .idea

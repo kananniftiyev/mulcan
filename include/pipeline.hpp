@@ -22,20 +22,19 @@ namespace Mulcan
     class Pipeline
     {
     private:
-        static size_t mPipelineCount;
-        static size_t mPipelineLayoutCount;
-
         // TODO: Caching support.
         VkPipelineCache mPipelineCache;
         VkPipelineLayout mPipelineLayout;
         VkPipeline mPipeline;
-        VkRenderPass &mRenderPass;
+        const VkRenderPass &mRenderPass;
 
-        VkDevice &mDevice;
+        const VkDevice &mDevice;
 
         VkShaderModule createShaderModule(const char *pShaderPath);
 
     public:
+        static size_t mPipelineCount;
+        static size_t mPipelineLayoutCount;
         Pipeline(VkDevice &pDevice, VkRenderPass &pRenderPass);
 
         void CreatePipelineLayout(const std::vector<VkPushConstantRange> &pPushConstants, const std::vector<VkDescriptorSetLayout> &pSetLayouts);
