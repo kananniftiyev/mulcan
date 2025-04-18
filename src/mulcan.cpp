@@ -29,6 +29,11 @@ namespace Mulcan
 
 	VmaAllocator gVmaAllocator;
 
+	namespace Flags
+	{
+		bool hasRunTransferCommands = false;
+	}
+
 	namespace Render
 	{
 		std::vector<VkImage> gSwapchainImages;
@@ -312,6 +317,77 @@ namespace
 
 }
 
+namespace
+{
+	void transitionImageToPresentLayout(VkCommandBuffer pCmd, VkImage pImage, const VkQueue &pQueue)
+	{
+		VkImageMemoryBarrier info{};
+		info.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+		info.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+		info.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
+		info.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		info.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		info.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		info.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+		info.image = pImage;
+		info.subresourceRange = {};
+		info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+		info.subresourceRange.baseMipLevel = 0;
+		info.subresourceRange.levelCount = 1;
+		info.subresourceRange.baseArrayLayer = 0;
+		info.subresourceRange.layerCount = 1;
+
+		vkCmdPipelineBarrier(pCmd, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &info);
+	}
+
+	void runTransferBufferCommand()
+	{
+		auto cmd = Mulcan::gBufferTransfer.cmd;
+
+		auto cmd_info = MulcanInfos::createCommandBufferBeginInfo(0);
+
+		CHECK_VK_LOG(vkBeginCommandBuffer(cmd, &cmd_info));
+
+		VkBufferCopy copy;
+		copy.dstOffset = 0;
+		copy.srcOffset = 0;
+
+		for (const auto &buf : Mulcan::gTransferBuffers)
+		{
+			copy.size = buf.buffer_size;
+			vkCmdCopyBuffer(cmd, buf.src, buf.dst, 1, &copy);
+		}
+
+		CHECK_VK_LOG(vkEndCommandBuffer(cmd));
+
+		vkResetFences(Mulcan::VKContext::gDevice, 1, &Mulcan::gBufferTransfer.fence);
+
+		VkSubmitInfo info = {};
+		info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
+		info.pNext = nullptr;
+
+		info.waitSemaphoreCount = 0;
+		info.pWaitSemaphores = nullptr;
+		info.pWaitDstStageMask = nullptr;
+		info.commandBufferCount = 1;
+		info.pCommandBuffers = &cmd;
+		info.signalSemaphoreCount = 0;
+		info.pSignalSemaphores = nullptr;
+
+		CHECK_VK_LOG(vkQueueSubmit(Mulcan::VKContext::gQueue, 1, &info, Mulcan::gBufferTransfer.fence));
+
+		vkWaitForFences(Mulcan::VKContext::gDevice, 1, &Mulcan::gBufferTransfer.fence, true, UINT32_MAX);
+
+		vkResetCommandPool(Mulcan::VKContext::gDevice, Mulcan::gBufferTransfer.pool, 0);
+
+		for (auto &buf : Mulcan::gTransferBuffers)
+		{
+			spdlog::info("Deleted Src buffer, size of buffer: {}", sizeof(buf.buffer_size));
+			vmaDestroyBuffer(Mulcan::gVmaAllocator, buf.src, nullptr);
+		}
+	}
+}
+
 void Mulcan::initialize(SDL_Window *&pWindow, uint32_t pWidth, uint32_t pHeigth)
 {
 	initializeSettings(pWidth, pHeigth);
@@ -326,77 +402,15 @@ void Mulcan::initialize(SDL_Window *&pWindow, uint32_t pWidth, uint32_t pHeigth)
 	initializeTransferBuffer();
 }
 
-void transitionImageToPresentLayout(VkCommandBuffer pCmd, VkImage pImage, const VkQueue &pQueue)
-{
-	VkImageMemoryBarrier info{};
-	info.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-	info.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-	info.dstAccessMask = VK_ACCESS_MEMORY_READ_BIT;
-	info.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-	info.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
-	info.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	info.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-	info.image = pImage;
-	info.subresourceRange = {};
-	info.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-	info.subresourceRange.baseMipLevel = 0;
-	info.subresourceRange.levelCount = 1;
-	info.subresourceRange.baseArrayLayer = 0;
-	info.subresourceRange.layerCount = 1;
-
-	vkCmdPipelineBarrier(pCmd, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &info);
-}
-
-void Mulcan::runTransferBufferCommand()
-{
-	auto cmd = Mulcan::gBufferTransfer.cmd;
-
-	auto cmd_info = MulcanInfos::createCommandBufferBeginInfo(0);
-
-	CHECK_VK_LOG(vkBeginCommandBuffer(cmd, &cmd_info));
-
-	VkBufferCopy copy;
-	copy.dstOffset = 0;
-	copy.srcOffset = 0;
-
-	for (const auto &buf : Mulcan::gTransferBuffers)
-	{
-		copy.size = buf.buffer_size;
-		vkCmdCopyBuffer(cmd, buf.src, buf.dst, 1, &copy);
-	}
-
-	CHECK_VK_LOG(vkEndCommandBuffer(cmd));
-
-	vkResetFences(Mulcan::VKContext::gDevice, 1, &Mulcan::gBufferTransfer.fence);
-
-	VkSubmitInfo info = {};
-	info.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	info.pNext = nullptr;
-
-	info.waitSemaphoreCount = 0;
-	info.pWaitSemaphores = nullptr;
-	info.pWaitDstStageMask = nullptr;
-	info.commandBufferCount = 1;
-	info.pCommandBuffers = &cmd;
-	info.signalSemaphoreCount = 0;
-	info.pSignalSemaphores = nullptr;
-
-	CHECK_VK_LOG(vkQueueSubmit(Mulcan::VKContext::gQueue, 1, &info, Mulcan::gBufferTransfer.fence));
-
-	vkWaitForFences(Mulcan::VKContext::gDevice, 1, &Mulcan::gBufferTransfer.fence, true, UINT32_MAX);
-
-	vkResetCommandPool(Mulcan::VKContext::gDevice, Mulcan::gBufferTransfer.pool, 0);
-
-	for (auto &buf : Mulcan::gTransferBuffers)
-	{
-		spdlog::info("Deleted Src buffer, size of buffer: {}", sizeof(buf.buffer_size));
-		vmaDestroyBuffer(Mulcan::gVmaAllocator, buf.src, nullptr);
-	}
-}
-
 // TODO: remove allocations.
 void Mulcan::beginFrame()
 {
+	if (!Mulcan::Flags::hasRunTransferCommands)
+	{
+		runTransferBufferCommand();
+		Mulcan::Flags::hasRunTransferCommands = true;
+	}
+
 	CHECK_VK_LOG(vkWaitForFences(Mulcan::VKContext::gDevice, 1, &Mulcan::getCurrFrame().render_fence, true, UINT64_MAX));
 	CHECK_VK_LOG(vkResetFences(Mulcan::VKContext::gDevice, 1, &Mulcan::getCurrFrame().render_fence));
 
@@ -443,7 +457,6 @@ void Mulcan::beginFrame()
 // TODO: Refactor to infos.
 void Mulcan::endFrame()
 {
-
 	vkCmdEndRenderPass(Mulcan::getCurrFrame().render_cmd);
 
 	transitionImageToPresentLayout(Mulcan::getCurrFrame().render_cmd, Mulcan::Render::gSwapchainImages[Mulcan::Render::gSwapchainImageIndex], Mulcan::VKContext::gQueue);
@@ -477,14 +490,14 @@ void Mulcan::endFrame()
 	Mulcan::Render::gFramecount++;
 }
 
-void Mulcan::setVsync(bool value)
+void Mulcan::setVsync(bool pValue)
 {
-	Mulcan::Settings::gVsync = value;
+	Mulcan::Settings::gVsync = pValue;
 }
 
-void Mulcan::setImgui(bool value)
+void Mulcan::setImgui(bool pValue)
 {
-	Mulcan::Settings::gImgui = value;
+	Mulcan::Settings::gImgui = pValue;
 }
 
 bool Mulcan::addTransferBuffer(const Mulcan::TransferBuffer &pTransferBuffer)
@@ -496,26 +509,6 @@ bool Mulcan::addTransferBuffer(const Mulcan::TransferBuffer &pTransferBuffer)
 	Mulcan::gTransferBuffers.push_back(pTransferBuffer);
 
 	return true;
-}
-
-VkCommandBuffer Mulcan::getCurrCommand()
-{
-	return Mulcan::getCurrFrame().render_cmd;
-}
-
-VkRenderPass Mulcan::getMainPass()
-{
-	return Mulcan::Render::gMainPass;
-}
-
-VkDevice &Mulcan::getDevice()
-{
-	return Mulcan::VKContext::gDevice;
-}
-
-VmaAllocator &Mulcan::getAllocator()
-{
-	return Mulcan::gVmaAllocator;
 }
 
 void Mulcan::recreateSwapchain(uint32_t pWidth, uint32_t pHeight)
@@ -578,4 +571,25 @@ void Mulcan::shutdown()
 	vkDestroySurfaceKHR(Mulcan::VKContext::gInstance, Mulcan::VKContext::gSurface, nullptr);
 	vkb::destroy_debug_utils_messenger(Mulcan::VKContext::gInstance, Mulcan::VKContext::gDebugMessenger, nullptr);
 	vkDestroyInstance(Mulcan::VKContext::gInstance, nullptr);
+}
+
+// Getters
+VkCommandBuffer Mulcan::getCurrCommand()
+{
+	return Mulcan::getCurrFrame().render_cmd;
+}
+
+VkRenderPass Mulcan::getMainPass()
+{
+	return Mulcan::Render::gMainPass;
+}
+
+VkDevice &Mulcan::getDevice()
+{
+	return Mulcan::VKContext::gDevice;
+}
+
+VmaAllocator &Mulcan::getAllocator()
+{
+	return Mulcan::gVmaAllocator;
 }

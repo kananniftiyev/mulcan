@@ -87,13 +87,12 @@ namespace Mulcan
 	void initialize(SDL_Window *&pWindow, uint32_t pWidth, uint32_t pHeight);
 
 	// Render Functions
-	void runTransferBufferCommand();
 	void beginFrame();
 	void endFrame();
 
 	// Settigns functions
-	void setVsync(bool value);
-	void setImgui(bool value);
+	void setVsync(bool pValue);
+	void setImgui(bool pValue);
 
 	// Buffers
 	bool addTransferBuffer(const Mulcan::TransferBuffer &pTransferBuffer);
@@ -117,10 +116,10 @@ namespace Mulcan
 		AllocatedBuffer staging_buffer;
 		CHECK_VK_LOG(vmaCreateBuffer(Mulcan::gVmaAllocator, &buffer_info, &vma_alloc_info, &staging_buffer.buffer, &staging_buffer.allocation, nullptr));
 
-		void *s_data;
-		vmaMapMemory(Mulcan::gVmaAllocator, staging_buffer.allocation, &s_data);
+		void *data;
+		vmaMapMemory(Mulcan::gVmaAllocator, staging_buffer.allocation, &data);
 
-		memcpy(s_data, pData.data(), size);
+		memcpy(data, pData.data(), size);
 
 		vmaUnmapMemory(Mulcan::gVmaAllocator, staging_buffer.allocation);
 

@@ -3,6 +3,35 @@
 #include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 
+constexpr int WIDTH = 1920;
+constexpr int HEIGHT = 1080;
+
+struct Object
+{
+    int id;
+    std::vector<Mulcan::Vertex> vertices;
+    std::vector<uint32_t> indices;
+
+    glm::vec3 pos;
+    glm::vec3 scale;
+    glm::vec3 rotation;
+};
+
+glm::mat4 CreateModelMatrix(const glm::vec3 &pPos, const glm::vec3 &pScale, const glm::vec3 &pRotation)
+{
+    glm::mat4 model = glm::mat4(1.0f);
+    model = glm::translate(model, pPos);
+    model = glm::rotate(model, pRotation.x, glm::vec3(1, 0, 0));
+    model = glm::rotate(model, pRotation.y, glm::vec3(0, 1, 0));
+    model = glm::rotate(model, pRotation.z, glm::vec3(0, 0, 1));
+    model = glm::scale(model, pScale);
+    return model;
+}
+
+void DrawObject(const Object &pObject)
+{
+}
+
 const std::vector<Mulcan::Vertex> vertices = {
     // Position                 // Color                // TexCoord           // Normal
     {{1.0f, 1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},   // 0: v1 (red)
@@ -56,11 +85,11 @@ int main()
 
     auto window = SDL_CreateWindow(
         "Vulkan Engine",
-        800,
-        600,
+        WIDTH,
+        HEIGHT,
         window_flags);
 
-    Mulcan::initialize(window, 1920, 1080);
+    Mulcan::initialize(window, WIDTH, HEIGHT);
 
     auto device = Mulcan::getDevice();
     auto alloc = Mulcan::getAllocator();
@@ -71,8 +100,6 @@ int main()
 
     auto vb = Mulcan::createTransferBuffer<Mulcan::Vertex>(vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
     auto ib = Mulcan::createTransferBuffer<uint32_t>(indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
-
-    Mulcan::runTransferBufferCommand();
 
     VkDescriptorSetLayoutBinding bindingOne{};
     bindingOne.binding = 0;
@@ -148,18 +175,15 @@ int main()
 
         glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
         // camera projection
-        glm::mat4 projection = glm::perspective(glm::radians(70.f), 800.f / 600.f, 0.1f, 200.0f);
+        glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)WIDTH / (float)HEIGHT, 0.1f, 100.0f);
         projection[1][1] *= -1;
         // model rotation
         glm::mat4 model = glm::rotate(glm::mat4{1.0f}, glm::radians(framenumber * 0.4f), glm::vec3(0, 1, 0));
 
-        // calculate final mesh matrix
-        glm::mat4 mesh_matrix = projection * view * model;
-
         Mulcan::MeshPushConstants constants;
         constants.render_matrix = model;
 
-        // // fill a GPU camera data struct
+        // fill a GPU camera data struct
         GPUCameraData camData;
         camData.proj = projection;
         camData.view = view;
