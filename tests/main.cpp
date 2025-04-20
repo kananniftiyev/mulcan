@@ -28,6 +28,10 @@ glm::mat4 CreateModelMatrix(const glm::vec3 &pPos, const glm::vec3 &pScale, cons
     return model;
 }
 
+void InitObject(const Object &pObject)
+{
+}
+
 void DrawObject(const Object &pObject)
 {
 }
@@ -98,8 +102,9 @@ int main()
     Mulcan::Pipeline pipeline{device, renderpass};
     Mulcan::DescriptorManager descriptorManager{alloc, device};
 
-    auto vb = Mulcan::createTransferBuffer<Mulcan::Vertex>(vertices, VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
-    auto ib = Mulcan::createTransferBuffer<uint32_t>(indices, VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
+    VkBuffer vb, ib;
+    Mulcan::createTransferBuffer(vertices.data(), vertices.size() * sizeof(Mulcan::Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &vb);
+    Mulcan::createTransferBuffer(indices.data(), indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &ib);
 
     VkDescriptorSetLayoutBinding bindingOne{};
     bindingOne.binding = 0;
