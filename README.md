@@ -1,6 +1,6 @@
 ﻿# ⚙️ Mulcan
 
-Mulcan is a lightweight abstraction library for Vulkan, designed to simplify the creation and management of Vulkan objects while maintaining the flexibility and performance of the Vulkan API. It provides an intuitive interface to abstract away low-level Vulkan details, enabling developers to focus on building high-performance graphics applications.
+🌋 Mulcan is a lightweight 3D renderer built on Vulkan. It streamlines the process of rendering high-performance graphics by handling core Vulkan setup and rendering tasks, while keeping the flexibility and control developers need for custom rendering workflows.
 
 # Technologies used
 
