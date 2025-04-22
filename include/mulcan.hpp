@@ -81,6 +81,36 @@ namespace Mulcan
 		glm::mat4 render_matrix;
 	};
 
+	struct RenderData
+	{
+		uint32_t meshHandle;
+		uint32_t textureHandle;
+		uint32_t transformHandle;
+		bool isVisible = false;
+	};
+
+	struct Mesh
+	{
+		VkBuffer vertexBuffer;
+		VkBuffer indexBuffer;
+		uint32_t indexCount;
+	};
+
+	struct Transform
+	{
+		glm::vec3 position;
+		glm::vec3 rotation;
+		glm::vec3 scale;
+		bool isChanged;
+	};
+
+	struct GPUCameraData
+	{
+		glm::mat4 view;
+		glm::mat4 proj;
+		glm::mat4 viewproj;
+	};
+
 	extern VmaAllocator gVmaAllocator;
 
 	// Init Functions
@@ -89,6 +119,20 @@ namespace Mulcan
 	// Render Functions
 	void beginFrame();
 	void endFrame();
+
+	// Systems
+	void RenderWorldSystem();
+	// TODO: void RenderDebugUISystem();
+	// TODO: void RenderPostProcessSystem();
+	// TODO: void RunAllSystems();
+
+	// Objects
+	bool SpawnSampleCube();
+	bool SpawnCustomModel(const char *pFilePath);
+
+	void RemoveModel(uint32_t pHandle);
+
+	glm::mat4 CreateModelMatrix(const glm::vec3 &pPos, const glm::vec3 &pScale, const glm::vec3 &pRotation);
 
 	// Settigns functions
 	void setVsync(bool pValue);

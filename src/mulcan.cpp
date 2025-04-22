@@ -38,7 +38,6 @@ namespace Mulcan
 		std::vector<VkImageView> gSwapchainImageViews;
 		VkFormat gSwapchainFormat;
 		VkFormat gDepthFormat;
-		VkRenderPass gMainPass;
 		std::array<FrameData, 2> gFrames;
 		std::vector<VkFramebuffer> gMainFramebuffers;
 		AllocatedImage gDepthImage;
@@ -46,6 +45,23 @@ namespace Mulcan
 		uint32_t gFramecount = 0;
 		uint32_t gSwapchainImageIndex;
 	}
+
+	namespace Pipelines
+	{
+		VkPipeline ObjectMainPipeline;
+		VkPipeline ObjectShadowPipeline;
+		VkPipeline ObjectSkyboxPipeline;
+	} // namespace Pipelines
+
+	namespace PipelineLayouts
+	{
+		VkPipelineLayout ObjectMainLayout;
+	} // namespace PipelineLayouts
+
+	namespace RenderPasses
+	{
+		VkRenderPass gObjectMainRenderPass;
+	} // namespace RenderPasses
 
 #ifdef TRIBLE_BUFFER
 	constexpr size_t FRAME_OVERLAP = 3;
@@ -59,6 +75,15 @@ namespace Mulcan
 
 	FrameData &getCurrFrame() { return Render::gFrames[Render::gFramecount % FRAME_OVERLAP]; }
 
+	std::vector<RenderData> gRenderDatas;
+	std::unordered_map<uint32_t, Mesh> gMeshMap;
+	std::unordered_map<uint32_t, Transform> gTransformMap;
+
+	static uint32_t gUniqueHandle = 0;
+
+	AllocatedBuffer gUnifromCameraBuffer;
+
+	std::unique_ptr<Mulcan::DescriptorManager> gDescriptorManager;
 }
 
 namespace
@@ -273,7 +298,7 @@ namespace
 			.pDependencies = &dependencies[0],
 		};
 
-		CHECK_VK_LOG(vkCreateRenderPass(Mulcan::VKContext::gDevice, &render_pass_info, nullptr, &Mulcan::Render::gMainPass));
+		CHECK_VK_LOG(vkCreateRenderPass(Mulcan::VKContext::gDevice, &render_pass_info, nullptr, &Mulcan::RenderPasses::gObjectMainRenderPass));
 	}
 
 	void initializeFrameBuffer()
@@ -282,7 +307,7 @@ namespace
 			.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 			.pNext = nullptr,
 			.flags = 0,
-			.renderPass = Mulcan::Render::gMainPass,
+			.renderPass = Mulcan::RenderPasses::gObjectMainRenderPass,
 			.width = Mulcan::Settings::gWindowExtend.width,
 			.height = Mulcan::Settings::gWindowExtend.height,
 			.layers = 1};
@@ -386,6 +411,52 @@ namespace
 	}
 }
 
+namespace
+{
+	struct GPUCameraData
+	{
+		glm::mat4 view;
+		glm::mat4 proj;
+		glm::mat4 viewproj;
+	};
+
+	void InitObjectMainPipeline()
+	{
+
+		Mulcan::Pipeline pipeline{Mulcan::VKContext::gDevice, Mulcan::RenderPasses::gObjectMainRenderPass};
+		Mulcan::gDescriptorManager = std::make_unique<Mulcan::DescriptorManager>(Mulcan::gVmaAllocator, Mulcan::VKContext::gDevice);
+
+		VkDescriptorSetLayoutBinding bindingOne{};
+		bindingOne.binding = 0;
+		bindingOne.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+		bindingOne.descriptorCount = 1;
+		bindingOne.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+		Mulcan::gDescriptorManager->CreateDescriptorLayout(1, {bindingOne});
+		Mulcan::gUnifromCameraBuffer = Mulcan::gDescriptorManager->CreateUniformBuffer(sizeof(GPUCameraData));
+		Mulcan::gDescriptorManager->CreateDescriptorSet(1, Mulcan::gUnifromCameraBuffer.buffer, sizeof(GPUCameraData));
+
+		VkPushConstantRange pushConsant{};
+		pushConsant.size = sizeof(Mulcan::MeshPushConstants);
+		pushConsant.offset = 0;
+		pushConsant.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
+
+		pipeline.CreatePipelineLayout({pushConsant}, {Mulcan::gDescriptorManager->GetDescriptorLayout(1)});
+		pipeline.CreatePipeline("./shaders/cube-v.spv", "./shaders/cube-f.spv");
+
+		Mulcan::Pipelines::ObjectMainPipeline = pipeline.GetPipeline();
+		Mulcan::PipelineLayouts::ObjectMainLayout = pipeline.GetPipelineLayout();
+	}
+
+	void InitObjectShadowPipeline()
+	{
+	}
+
+	void InitObjectSkyboxPipeline()
+	{
+	}
+}
+
 void Mulcan::initialize(SDL_Window *&pWindow, uint32_t pWidth, uint32_t pHeigth)
 {
 	initializeSettings(pWidth, pHeigth);
@@ -398,6 +469,11 @@ void Mulcan::initialize(SDL_Window *&pWindow, uint32_t pWidth, uint32_t pHeigth)
 	initializeRenderPass();
 	initializeFrameBuffer();
 	initializeTransferBuffer();
+
+	// Pipelines
+	InitObjectMainPipeline();
+	InitObjectShadowPipeline();
+	InitObjectSkyboxPipeline();
 }
 
 // TODO: remove allocations.
@@ -425,7 +501,7 @@ void Mulcan::beginFrame()
 
 	VkRenderPassBeginInfo main_renderpass_info{
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-		.renderPass = Mulcan::Render::gMainPass,
+		.renderPass = Mulcan::RenderPasses::gObjectMainRenderPass,
 		.framebuffer = Mulcan::Render::gMainFramebuffers[Mulcan::Render::gSwapchainImageIndex],
 		.renderArea = {
 			.offset = {0, 0},
@@ -486,6 +562,148 @@ void Mulcan::endFrame()
 	CHECK_VK_LOG(vkQueuePresentKHR(Mulcan::VKContext::gQueue, &present_info));
 
 	Mulcan::Render::gFramecount++;
+}
+
+inline uint32_t GenerateUniqueHandle()
+{
+	return Mulcan::gUniqueHandle++;
+}
+
+void Mulcan::RenderWorldSystem()
+{
+	VkDeviceSize offsets[1]{0};
+	vkCmdBindPipeline(Mulcan::getCurrCommand(), VK_PIPELINE_BIND_POINT_GRAPHICS, Mulcan::Pipelines::ObjectMainPipeline);
+	for (auto render : gRenderDatas)
+	{
+		if (!render.isVisible)
+		{
+			continue;
+		}
+
+		auto vertexBuffer = gMeshMap[render.meshHandle].vertexBuffer;
+		auto indexBuffer = gMeshMap[render.meshHandle].indexBuffer;
+		auto indexCount = gMeshMap[render.meshHandle].indexCount;
+		vkCmdBindVertexBuffers(Mulcan::getCurrCommand(), 0, 1, &vertexBuffer, offsets);
+		vkCmdBindIndexBuffer(Mulcan::getCurrCommand(), indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+
+		// camera view
+		glm::vec3 camPos = {0.f, -0.f, -5.f};
+
+		glm::mat4 view = glm::translate(glm::mat4(1.f), camPos);
+		// camera projection
+		glm::mat4 projection = glm::perspective(glm::radians(70.f), (float)Mulcan::Settings::gWindowExtend.width / (float)Mulcan::Settings::gWindowExtend.height, 0.1f, 100.0f);
+		projection[1][1] *= -1;
+		// model rotation
+		glm::mat4 model = glm::rotate(glm::mat4{1.0f}, glm::radians(Mulcan::Render::gFramecount * 0.4f), glm::vec3(0, 1, 0));
+
+		Mulcan::MeshPushConstants constants;
+		constants.render_matrix = model;
+
+		// fill a GPU camera data struct
+		GPUCameraData camData;
+		camData.proj = projection;
+		camData.view = view;
+		camData.viewproj = projection * view;
+
+		Mulcan::gDescriptorManager->UpdateBuffer<GPUCameraData>(&Mulcan::gUnifromCameraBuffer, camData);
+
+		vkCmdBindDescriptorSets(Mulcan::getCurrCommand(), VK_PIPELINE_BIND_POINT_GRAPHICS, Mulcan::PipelineLayouts::ObjectMainLayout, 0, 1, &Mulcan::gDescriptorManager->GetDescriptorSet(1), 0, nullptr);
+		// calculate final mesh matrix
+		vkCmdPushConstants(Mulcan::getCurrCommand(), Mulcan::PipelineLayouts::ObjectMainLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mulcan::MeshPushConstants), &constants);
+
+		vkCmdDrawIndexed(Mulcan::getCurrCommand(), indexCount, 1, 0, 0, 0);
+	}
+}
+
+bool Mulcan::SpawnSampleCube()
+{
+	const std::vector<Mulcan::Vertex> vertices = {
+		// Position                 // Color                // TexCoord           // Normal
+		{{1.0f, 1.0f, -1.0f}, {1.0f, 0.0f, 0.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},	// 0: v1 (red)
+		{{1.0f, -1.0f, -1.0f}, {0.0f, 1.0f, 0.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},	// 1: v2 (green)
+		{{1.0f, 1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},		// 2: v3 (blue)
+		{{1.0f, -1.0f, 1.0f}, {1.0f, 1.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},	// 3: v4 (yellow)
+		{{-1.0f, 1.0f, -1.0f}, {1.0f, 0.0f, 1.0f}, {0.0f, 0.0f}, {0.0f, 0.0f, -1.0f}},	// 4: v5 (magenta)
+		{{-1.0f, -1.0f, -1.0f}, {0.0f, 1.0f, 1.0f}, {1.0f, 0.0f}, {0.0f, 0.0f, -1.0f}}, // 5: v6 (cyan)
+		{{-1.0f, 1.0f, 1.0f}, {1.0f, 1.0f, 1.0f}, {0.0f, 1.0f}, {0.0f, 0.0f, 1.0f}},	// 6: v7 (white)
+		{{-1.0f, -1.0f, 1.0f}, {0.0f, 0.0f, 0.0f}, {1.0f, 1.0f}, {0.0f, 0.0f, 1.0f}}	// 7: v8 (gray)
+	};
+
+	const std::vector<uint32_t> indices = {
+		// Top face (Y+)
+		0, 4, 6,
+		0, 6, 2,
+
+		// Front face (Z+)
+		2, 6, 7,
+		2, 7, 3,
+
+		// Left face (X-)
+		6, 4, 5,
+		6, 5, 7,
+
+		// Bottom face (Y-)
+		3, 7, 5,
+		3, 5, 1,
+
+		// Right face (X+)
+		0, 2, 3,
+		0, 3, 1,
+
+		// Back face (Z-)
+		0, 1, 5,
+		0, 5, 4};
+
+	auto handle = GenerateUniqueHandle();
+
+	VkBuffer vertexBuffer, indexBuffer;
+	createTransferBuffer(vertices.data(), vertices.size() * sizeof(Mulcan::Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &vertexBuffer);
+	Mulcan::createTransferBuffer(indices.data(), indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &indexBuffer);
+
+	Mesh mesh{
+		.vertexBuffer = vertexBuffer,
+		.indexBuffer = indexBuffer,
+		.indexCount = 36};
+	gMeshMap[handle] = mesh;
+
+	Transform transform{
+		.position = glm::vec3(1.0),
+		.rotation = glm::vec3(1.0),
+		.scale = glm::vec3(1.0),
+		.isChanged = true};
+	gTransformMap[handle] = transform;
+
+	RenderData render{
+		.meshHandle = handle,
+		.transformHandle = handle,
+		.isVisible = true,
+	};
+	gRenderDatas.push_back(render);
+
+	Mulcan::addDestroyBuffer(vertexBuffer);
+	Mulcan::addDestroyBuffer(indexBuffer);
+
+	return true;
+}
+
+bool Mulcan::SpawnCustomModel(const char *pFilePath)
+{
+	return false;
+}
+
+void Mulcan::RemoveModel(uint32_t pHandle)
+{
+}
+
+glm::mat4 Mulcan::CreateModelMatrix(const glm::vec3 &pPos, const glm::vec3 &pScale, const glm::vec3 &pRotation)
+{
+	glm::mat4 model = glm::mat4(1.0f);
+	model = glm::translate(model, pPos);
+	model = glm::rotate(model, pRotation.x, glm::vec3(1, 0, 0));
+	model = glm::rotate(model, pRotation.y, glm::vec3(0, 1, 0));
+	model = glm::rotate(model, pRotation.z, glm::vec3(0, 0, 1));
+	model = glm::scale(model, pScale);
+	return model;
 }
 
 void Mulcan::setVsync(bool pValue)
@@ -601,7 +819,7 @@ void Mulcan::shutdown()
 		vkDestroyFramebuffer(Mulcan::VKContext::gDevice, framebuffer, nullptr);
 	}
 
-	vkDestroyRenderPass(Mulcan::VKContext::gDevice, Mulcan::Render::gMainPass, nullptr);
+	vkDestroyRenderPass(Mulcan::VKContext::gDevice, Mulcan::RenderPasses::gObjectMainRenderPass, nullptr);
 	for (auto &frame : Render::gFrames)
 	{
 		vkDestroyCommandPool(Mulcan::VKContext::gDevice, frame.render_pool, nullptr);
@@ -629,7 +847,7 @@ VkCommandBuffer Mulcan::getCurrCommand()
 
 VkRenderPass Mulcan::getMainPass()
 {
-	return Mulcan::Render::gMainPass;
+	return Mulcan::RenderPasses::gObjectMainRenderPass;
 }
 
 VkDevice &Mulcan::getDevice()
