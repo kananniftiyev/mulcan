@@ -3,6 +3,11 @@
 #include <iostream>
 #include <spdlog/spdlog.h>
 
+#ifdef NDEBUG
+do
+{
+} while (0)
+#else
 #define CHECK_VK_LOG(res)                                                      \
     if (res != VK_SUCCESS)                                                     \
     {                                                                          \
@@ -11,3 +16,13 @@
         std::cout << "Hello";                                                  \
         abort();                                                               \
     }
+#endif // DEBUG
+
+#ifdef NDEBUG
+#define LOG(msg) \
+    do           \
+    {            \
+    } while (0)
+#else
+#define LOG(msg) spdlog::info(msg)
+#endif

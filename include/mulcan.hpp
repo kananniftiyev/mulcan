@@ -25,6 +25,8 @@
 #include "mulkan_macros.hpp"
 #include "pipeline.hpp"
 #include "descriptor.hpp"
+#include "camera.hpp"
+#include "common_types.hpp"
 
 namespace Mulcan
 {
@@ -47,14 +49,6 @@ namespace Mulcan
 		VkFence fence;
 		VkCommandPool pool;
 		VkCommandBuffer cmd;
-	};
-
-	// TODO: Rename
-
-	struct AllocatedImage
-	{
-		VkImage image;
-		VmaAllocation allocation;
 	};
 
 	struct TransferBuffer
@@ -104,13 +98,6 @@ namespace Mulcan
 		bool isChanged;
 	};
 
-	struct GPUCameraData
-	{
-		glm::mat4 view;
-		glm::mat4 proj;
-		glm::mat4 viewproj;
-	};
-
 	extern VmaAllocator gVmaAllocator;
 
 	// Init Functions
@@ -132,7 +119,7 @@ namespace Mulcan
 
 	void RemoveModel(uint32_t pHandle);
 
-	glm::mat4 CreateModelMatrix(const glm::vec3 &pPos, const glm::vec3 &pScale, const glm::vec3 &pRotation);
+	glm::mat4 CreateModelMatrix(const glm::vec3 &pPos, const glm::vec3 &pRotation, const glm::vec3 &pScale);
 
 	// Settigns functions
 	void setVsync(bool pValue);

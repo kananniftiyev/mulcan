@@ -1,39 +1,9 @@
 #include <iostream>
 #include "mulcan.hpp"
-#include <glm/glm.hpp>
 #include <SDL3/SDL.h>
 
 constexpr int WIDTH = 1920;
 constexpr int HEIGHT = 1080;
-
-struct Object
-{
-    int id;
-    std::vector<Mulcan::Vertex> vertices;
-    std::vector<uint32_t> indices;
-
-    glm::vec3 pos;
-    glm::vec3 scale;
-    glm::vec3 rotation;
-};
-
-glm::mat4 CreateModelMatrix(const glm::vec3 &pPos, const glm::vec3 &pScale, const glm::vec3 &pRotation)
-{
-    glm::mat4 model = glm::mat4(1.0f);
-    model = glm::translate(model, pPos);
-    model = glm::rotate(model, pRotation.x, glm::vec3(1, 0, 0));
-    model = glm::rotate(model, pRotation.y, glm::vec3(0, 1, 0));
-    model = glm::rotate(model, pRotation.z, glm::vec3(0, 0, 1));
-    model = glm::scale(model, pScale);
-    return model;
-}
-
-struct GPUCameraData
-{
-    glm::mat4 view;
-    glm::mat4 proj;
-    glm::mat4 viewproj;
-};
 
 int main()
 {
@@ -48,6 +18,7 @@ int main()
         window_flags);
 
     Mulcan::initialize(window, WIDTH, HEIGHT);
+    Mulcan::setVsync(false);
 
     Mulcan::SpawnSampleCube();
 

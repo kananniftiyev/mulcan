@@ -7,54 +7,36 @@
 #include <vk_mem_alloc.h>
 #endif // _UNIX
 #include <vulkan/vulkan.h>
-#include <spdlog/spdlog.h>
 #include "mulkan_macros.hpp"
 #include <unordered_map>
 #include <vector>
+#include "common_types.hpp"
+#include "frameresource.hpp"
 
-namespace Mulcan
+namespace Mulcan::Descriptor
 {
-
-    struct AllocatedBuffer
+    struct SingleDescriptorCtx
     {
-        VkBuffer buffer;
-        VmaAllocation allocation;
+        VkDescriptorSet set;
+        VkDescriptorSetLayout layout;
+        std::vector<AllocatedBuffer> buffers;
     };
 
-    class DescriptorManager
+    struct DoubleDescriptorCtx
     {
-    private:
-        VmaAllocator &mAllocator;
-        VkDevice &mDevice;
-        std::unordered_map<int, VkDescriptorSetLayout> mDescriptorLayoutMap;
-        std::unordered_map<int, VkDescriptorSet> mDescriptorSetMap;
+        std::array<VkDescriptorSet, 2> set;
+        VkDescriptorSetLayout layout;
+        std::array<AllocatedBuffer, 2> buffers;
 
-        VkDescriptorPool mStaticObjectPool;
-        VkDescriptorPool mDynamicObjectPool;
-
-    public:
-        DescriptorManager(VmaAllocator &pAllocator, VkDevice &pDevice);
-
-        void CreateDescriptorLayout(int id, const std::vector<VkDescriptorSetLayoutBinding> &pBindings);
-        void CreateDescriptorSet(int id, VkBuffer &pBuffer, size_t pSize);
-
-        AllocatedBuffer CreateUniformBuffer(size_t pAllocSize);
-
-        template <typename T>
-        void UpdateBuffer(AllocatedBuffer *pAllocatedBuffer, T pData)
-        {
-            void *data;
-            vmaMapMemory(this->mAllocator, pAllocatedBuffer->allocation, &data);
-
-            memcpy(data, &pData, sizeof(T));
-
-            vmaUnmapMemory(this->mAllocator, pAllocatedBuffer->allocation);
-        }
-
-        VkDescriptorSetLayout &GetDescriptorLayout(int id) { return this->mDescriptorLayoutMap[id]; }
-        VkDescriptorSet &GetDescriptorSet(int id) { return this->mDescriptorSetMap[id]; }
-
-        void Cleanup();
+        VkDescriptorSetLayoutCreateInfo layoutCreateInfo;
+        VkBufferCreateInfo bufferCreateInfo;
+        VkDescriptorPool pool;
+        size_t allocSize;
     };
+
+    void addBindingToSet(const VkDescriptorSetLayoutBinding &binding, DoubleDescriptorCtx *ctx);
+    void addBufferToSet(size_t allocationSize, DoubleDescriptorCtx *ctx);
+    void updateData(VmaAllocator &allocator, VmaAllocation allocation, const void *pData, size_t size);
+    void buildSet(VkDevice &device, VmaAllocator &allocator, DoubleDescriptorCtx *ctx);
 
 } // namespace Mulcan

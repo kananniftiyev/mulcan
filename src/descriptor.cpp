@@ -1,8 +1,39 @@
 #include "descriptor.hpp"
 
-Mulcan::DescriptorManager::DescriptorManager(VmaAllocator &pAllocator, VkDevice &pDevice) : mAllocator(pAllocator), mDevice(pDevice)
+void Mulcan::Descriptor::addBindingToSet(const VkDescriptorSetLayoutBinding &binding, DoubleDescriptorCtx *ctx)
 {
-    std::vector<VkDescriptorPoolSize> staticPoolSizes = {
+    VkDescriptorSetLayoutCreateInfo setLayoutInfo{};
+    setLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
+    setLayoutInfo.bindingCount = 1;
+    setLayoutInfo.pBindings = &binding;
+
+    ctx->layoutCreateInfo = setLayoutInfo;
+}
+
+void Mulcan::Descriptor::addBufferToSet(size_t allocationSize, DoubleDescriptorCtx *ctx)
+{
+    VkBufferCreateInfo bufferInfo{};
+    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
+    bufferInfo.size = allocationSize;
+    bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+
+    ctx->allocSize = allocationSize;
+    ctx->bufferCreateInfo = bufferInfo;
+}
+
+void Mulcan::Descriptor::updateData(VmaAllocator &allocator, VmaAllocation allocation, const void *pData, size_t size)
+{
+    void *data;
+    vmaMapMemory(allocator, allocation, &data);
+
+    memcpy(data, pData, size);
+
+    vmaUnmapMemory(allocator, allocation);
+}
+
+void Mulcan::Descriptor::buildSet(VkDevice &device, VmaAllocator &allocator, DoubleDescriptorCtx *ctx)
+{
+    std::vector<VkDescriptorPoolSize> globalPoolSizes = {
         {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 10},
     };
 
@@ -10,74 +41,41 @@ Mulcan::DescriptorManager::DescriptorManager(VmaAllocator &pAllocator, VkDevice 
     staticPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     staticPoolInfo.flags = 0;
     staticPoolInfo.maxSets = 10;
-    staticPoolInfo.poolSizeCount = static_cast<uint32_t>(staticPoolSizes.size());
-    staticPoolInfo.pPoolSizes = staticPoolSizes.data();
+    staticPoolInfo.poolSizeCount = static_cast<uint32_t>(globalPoolSizes.size());
+    staticPoolInfo.pPoolSizes = globalPoolSizes.data();
 
-    CHECK_VK_LOG(vkCreateDescriptorPool(this->mDevice, &staticPoolInfo, nullptr, &this->mStaticObjectPool));
-}
+    CHECK_VK_LOG(vkCreateDescriptorPool(device, &staticPoolInfo, nullptr, &ctx->pool));
 
-void Mulcan::DescriptorManager::CreateDescriptorSet(int id, VkBuffer &pBuffer, size_t pSize)
-{
-
-    VkDescriptorSetAllocateInfo setAllocInfo{};
-    setAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-    setAllocInfo.descriptorPool = this->mStaticObjectPool;
-    setAllocInfo.pSetLayouts = &this->mDescriptorLayoutMap[id];
-    setAllocInfo.descriptorSetCount = 1;
-
-    VkDescriptorSet set;
-    CHECK_VK_LOG(vkAllocateDescriptorSets(this->mDevice, &setAllocInfo, &set));
-
-    this->mDescriptorSetMap[id] = set;
-
-    VkDescriptorBufferInfo bufferInfo{};
-    bufferInfo.buffer = pBuffer;
-    bufferInfo.range = pSize;
-    bufferInfo.offset = 0;
-
-    VkWriteDescriptorSet setWrite{};
-    setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    setWrite.descriptorCount = 1;
-    setWrite.dstSet = set;
-    setWrite.pBufferInfo = &bufferInfo;
-    setWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-
-    vkUpdateDescriptorSets(this->mDevice, 1, &setWrite, 0, nullptr);
-}
-
-void Mulcan::DescriptorManager::CreateDescriptorLayout(int id, const std::vector<VkDescriptorSetLayoutBinding> &pBindings)
-{
-    VkDescriptorSetLayoutCreateInfo setLayoutInfo{};
-    setLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-    setLayoutInfo.bindingCount = static_cast<uint32_t>(pBindings.size());
-    setLayoutInfo.pBindings = pBindings.data();
-
-    VkDescriptorSetLayout setLayout;
-    CHECK_VK_LOG(vkCreateDescriptorSetLayout(this->mDevice, &setLayoutInfo, nullptr, &setLayout));
-
-    this->mDescriptorLayoutMap[id] = setLayout;
-}
-
-[[nodiscard]]
-Mulcan::AllocatedBuffer Mulcan::DescriptorManager::CreateUniformBuffer(size_t pAllocSize)
-{
-    VkBufferCreateInfo bufferInfo{};
-    bufferInfo.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-    bufferInfo.size = pAllocSize;
-    bufferInfo.usage = VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT;
+    CHECK_VK_LOG(vkCreateDescriptorSetLayout(device, &ctx->layoutCreateInfo, nullptr, &ctx->layout));
 
     VmaAllocationCreateInfo allocInfo{};
     allocInfo.usage = VMA_MEMORY_USAGE_CPU_TO_GPU;
 
-    AllocatedBuffer allocatedBuffer{};
+    for (size_t i = 0; i < 2; i++)
+    {
+        VkDescriptorSetAllocateInfo setAllocInfo{};
+        setAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        setAllocInfo.descriptorPool = ctx->pool;
+        setAllocInfo.pSetLayouts = &ctx->layout;
+        setAllocInfo.descriptorSetCount = 1;
 
-    CHECK_VK_LOG(vmaCreateBuffer(this->mAllocator, &bufferInfo, &allocInfo, &allocatedBuffer.buffer, &allocatedBuffer.allocation, nullptr));
+        CHECK_VK_LOG(vkAllocateDescriptorSets(device, &setAllocInfo, &ctx->set[i]));
 
-    return allocatedBuffer;
-}
+        CHECK_VK_LOG(vmaCreateBuffer(allocator, &ctx->bufferCreateInfo, &allocInfo, &ctx->buffers[i].buffer, &ctx->buffers[i].allocation, nullptr));
 
-void Mulcan::DescriptorManager::Cleanup()
-{
-    vkDestroyDescriptorPool(this->mDevice, this->mStaticObjectPool, nullptr);
-    vkDestroyDescriptorPool(this->mDevice, this->mDynamicObjectPool, nullptr);
+        VkDescriptorBufferInfo cameraBufferInfo{};
+        cameraBufferInfo.buffer = ctx->buffers[i].buffer;
+        cameraBufferInfo.range = ctx->allocSize;
+        cameraBufferInfo.offset = 0;
+
+        VkWriteDescriptorSet setWrite{};
+        setWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        setWrite.descriptorCount = 1;
+        setWrite.dstSet = ctx->set[i];
+        setWrite.pBufferInfo = &cameraBufferInfo;
+        setWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
+        setWrite.dstBinding = 0;
+
+        vkUpdateDescriptorSets(device, 1, &setWrite, 0, nullptr);
+    }
 }
