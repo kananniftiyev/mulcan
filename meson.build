@@ -14,6 +14,8 @@ vma_src = files('./submodules/vma/src/VmaUsage.cpp')
 vk_bootsrap_dep = declare_dependency(include_directories: include_directories('./submodules/vk-bootstrap/src'))
 vk_bootsrap_src = files('./submodules/vk-bootstrap/src/VkBootstrap.cpp')
 
+entt_dep = declare_dependency(include_directories: include_directories('./submodules/entt/src'))
+
 all_deps = [
     vulkan_dep,
     glm_dep,
@@ -21,6 +23,7 @@ all_deps = [
     vma_dep,
     vk_bootsrap_dep,
     sdl3_dep,
+    entt_dep,
 ]
 
 mulcan_src = files(

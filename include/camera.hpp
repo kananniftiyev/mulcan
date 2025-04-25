@@ -28,16 +28,16 @@ private:
     float mFov = glm::radians(70.f);
     float mAspect = 1920.f / 1080.f;
     float mNear = 0.1f;
-    float mEnd = 100.f;
+    float mFar = 100.f;
 
     void Initialize();
 
     VmaAllocator &mAllocator;
 
 public:
-    Mulcan::Descriptor::DoubleDescriptorCtx mCtx;
+    Mulcan::Descriptor::DoubleBufferedDescriptorCtx mCtx;
 
-    Camera(const Mulcan::Descriptor::DoubleDescriptorCtx &ctx, VmaAllocator &allocator);
+    Camera(const Mulcan::Descriptor::DoubleBufferedDescriptorCtx &ctx, VmaAllocator &allocator);
 
     Camera(const Camera &other) = delete;
     Camera operator=(const Camera &other) = delete;

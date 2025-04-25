@@ -72,18 +72,13 @@ namespace Mulcan
 
 	FrameData &getCurrFrame() { return Render::gFrames[Render::gFramecount % FRAME_OVERLAP]; }
 
-	namespace Storage
-	{
-		std::vector<RenderData> gRenderDatas;
-		std::unordered_map<uint32_t, Mesh> gMeshMap;
-		std::unordered_map<uint32_t, Transform> gTransformMap;
-	} // namespace Storage
-
 	static uint32_t gUniqueHandle = 0;
 
 	AllocatedBuffer gUnifromCameraBuffer;
 
 	std::unique_ptr<Camera> gCamera;
+
+	entt::registry gRegistery;
 
 }
 
@@ -423,10 +418,10 @@ namespace
 		cameraBinding.descriptorCount = 1;
 		cameraBinding.stageFlags = VK_SHADER_STAGE_VERTEX_BIT;
 
-		Mulcan::Descriptor::DoubleDescriptorCtx cameraCtx;
-		Mulcan::Descriptor::addBindingToSet(cameraBinding, &cameraCtx);
-		Mulcan::Descriptor::addBufferToSet(sizeof(GPUCameraData), &cameraCtx);
-		Mulcan::Descriptor::buildSet(Mulcan::VKContext::gDevice, Mulcan::gVmaAllocator, &cameraCtx);
+		Mulcan::Descriptor::DoubleBufferedDescriptorBuildCtx cameraBuildCtx;
+		Mulcan::Descriptor::addBindingToSetDB(cameraBinding, &cameraBuildCtx);
+		Mulcan::Descriptor::addBufferToSetDB(sizeof(GPUCameraData), &cameraBuildCtx);
+		auto cameraCtx = Mulcan::Descriptor::buildSetDB(Mulcan::VKContext::gDevice, Mulcan::gVmaAllocator, &cameraBuildCtx);
 
 		Mulcan::Pipeline pipeline{Mulcan::VKContext::gDevice, Mulcan::RenderPasses::gObjectMainRenderPass};
 		Mulcan::gCamera = std::make_unique<Camera>(cameraCtx, Mulcan::gVmaAllocator);
@@ -568,24 +563,20 @@ void Mulcan::RenderWorldSystem()
 {
 	VkDeviceSize offsets[1]{0};
 	vkCmdBindPipeline(Mulcan::getCurrCommand(), VK_PIPELINE_BIND_POINT_GRAPHICS, Mulcan::Pipelines::ObjectMainPipeline);
-	for (auto render : Storage::gRenderDatas)
+
+	auto worldView = Mulcan::gRegistery.view<const Mulcan::MeshComponent, Mulcan::TransformComponent>();
+
+	for (auto [entity, mesh, transform] : worldView.each())
 	{
-		if (!render.isVisible)
+		if (!mesh.isVisible)
 		{
 			continue;
 		}
 
-		auto mesh = Mulcan::Storage::gMeshMap[render.meshHandle];
 		vkCmdBindVertexBuffers(Mulcan::getCurrCommand(), 0, 1, &mesh.vertexBuffer, offsets);
 		vkCmdBindIndexBuffer(Mulcan::getCurrCommand(), mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
 
-		if (Mulcan::Storage::gTransformMap[render.transformHandle].isChanged)
-		{
-			/* code */
-		}
-
-		auto transform = Mulcan::Storage::gTransformMap[render.transformHandle];
-		Mulcan::Storage::gTransformMap[render.meshHandle].rotation = glm::vec3(0.0f, glm::radians(Mulcan::Render::gFramecount * 0.4f), 0.0f);
+		transform.rotation = glm::vec3(0.0f, glm::radians(Mulcan::Render::gFramecount * 0.4f), 0.0f);
 
 		auto model = CreateModelMatrix(transform.position, transform.rotation, transform.scale);
 
@@ -593,7 +584,7 @@ void Mulcan::RenderWorldSystem()
 		constants.render_matrix = model;
 
 		gCamera->changeAspect((float)Mulcan::Settings::gWindowExtend.width, (float)Mulcan::Settings::gWindowExtend.width);
-		
+
 		gCamera->UpdateCamera(Mulcan::Render::gFramecount % FRAME_OVERLAP);
 
 		vkCmdBindDescriptorSets(Mulcan::getCurrCommand(), VK_PIPELINE_BIND_POINT_GRAPHICS, Mulcan::PipelineLayouts::ObjectMainLayout, 0, 1, &gCamera->mCtx.set[Mulcan::Render::gFramecount % Mulcan::FRAME_OVERLAP], 0, nullptr);
@@ -648,25 +639,23 @@ bool Mulcan::SpawnSampleCube()
 	createTransferBuffer(vertices.data(), vertices.size() * sizeof(Mulcan::Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &vertexBuffer);
 	Mulcan::createTransferBuffer(indices.data(), indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &indexBuffer);
 
-	Mesh mesh{
+	const auto entity = Mulcan::gRegistery.create();
+
+	MeshComponent mesh{
+		.name = "cube", // TODO: Increment name if same name exists
 		.vertexBuffer = vertexBuffer,
 		.indexBuffer = indexBuffer,
-		.indexCount = 36};
-	Storage::gMeshMap[handle] = mesh;
+		.indexCount = 36,
+		.isVisible = true};
 
-	Transform transform{
+	TransformComponent transform{
 		.position = glm::vec3(0.0f),
 		.rotation = glm::vec3(0.0f),
 		.scale = glm::vec3(1.0f),
 		.isChanged = true};
-	Storage::gTransformMap[handle] = transform;
 
-	RenderData render{
-		.meshHandle = handle,
-		.transformHandle = handle,
-		.isVisible = true,
-	};
-	Storage::gRenderDatas.push_back(render);
+	Mulcan::gRegistery.emplace<Mulcan::MeshComponent>(entity, mesh);
+	Mulcan::gRegistery.emplace<Mulcan::TransformComponent>(entity, transform);
 
 	Mulcan::addDestroyBuffer(vertexBuffer);
 	Mulcan::addDestroyBuffer(indexBuffer);
@@ -679,19 +668,14 @@ bool Mulcan::SpawnCustomModel(const char *pFilePath)
 	return false;
 }
 
-void Mulcan::RemoveModel(uint32_t pHandle)
+void Mulcan::RemoveModel(std::string name)
 {
-	// TODO: Faster algo
-	for (auto renderData : Storage::gRenderDatas)
+	auto deleteView = Mulcan::gRegistery.view<MeshComponent>();
+	for (auto [entity, mesh] : deleteView.each())
 	{
-		if (renderData.meshHandle == pHandle)
+		if (name == mesh.name)
 		{
-			auto mesh = Storage::gMeshMap[pHandle];
-			vkDestroyBuffer(VKContext::gDevice, mesh.vertexBuffer, nullptr);
-			vkDestroyBuffer(VKContext::gDevice, mesh.indexBuffer, nullptr);
-
-			LOG("deleted object");
-			Storage::gMeshMap.erase(pHandle);
+			Mulcan::gRegistery.destroy(entity);
 		}
 	}
 }

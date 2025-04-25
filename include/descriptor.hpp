@@ -11,32 +11,34 @@
 #include <unordered_map>
 #include <vector>
 #include "common_types.hpp"
-#include "frameresource.hpp"
 
 namespace Mulcan::Descriptor
 {
-    struct SingleDescriptorCtx
+    struct SingleBufferedDescriptorCtx
     {
         VkDescriptorSet set;
         VkDescriptorSetLayout layout;
         std::vector<AllocatedBuffer> buffers;
     };
 
-    struct DoubleDescriptorCtx
+    struct DoubleBufferedDescriptorCtx
     {
         std::array<VkDescriptorSet, 2> set;
-        VkDescriptorSetLayout layout;
         std::array<AllocatedBuffer, 2> buffers;
+        VkDescriptorSetLayout layout;
+    };
 
+    struct DoubleBufferedDescriptorBuildCtx
+    {
         VkDescriptorSetLayoutCreateInfo layoutCreateInfo;
         VkBufferCreateInfo bufferCreateInfo;
         VkDescriptorPool pool;
         size_t allocSize;
     };
 
-    void addBindingToSet(const VkDescriptorSetLayoutBinding &binding, DoubleDescriptorCtx *ctx);
-    void addBufferToSet(size_t allocationSize, DoubleDescriptorCtx *ctx);
+    void addBindingToSetDB(const VkDescriptorSetLayoutBinding &binding, DoubleBufferedDescriptorBuildCtx *ctx);
+    void addBufferToSetDB(size_t allocationSize, DoubleBufferedDescriptorBuildCtx *ctx);
     void updateData(VmaAllocator &allocator, VmaAllocation allocation, const void *pData, size_t size);
-    void buildSet(VkDevice &device, VmaAllocator &allocator, DoubleDescriptorCtx *ctx);
+    DoubleBufferedDescriptorCtx buildSetDB(VkDevice &device, VmaAllocator &allocator, DoubleBufferedDescriptorBuildCtx *ctx);
 
 } // namespace Mulcan

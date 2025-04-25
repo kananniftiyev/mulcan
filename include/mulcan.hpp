@@ -27,6 +27,7 @@
 #include "descriptor.hpp"
 #include "camera.hpp"
 #include "common_types.hpp"
+#include <entt/entt.hpp>
 
 namespace Mulcan
 {
@@ -75,22 +76,16 @@ namespace Mulcan
 		glm::mat4 render_matrix;
 	};
 
-	struct RenderData
+	struct MeshComponent
 	{
-		uint32_t meshHandle;
-		uint32_t textureHandle;
-		uint32_t transformHandle;
-		bool isVisible = false;
-	};
-
-	struct Mesh
-	{
+		std::string name;
 		VkBuffer vertexBuffer;
 		VkBuffer indexBuffer;
 		uint32_t indexCount;
+		bool isVisible = false;
 	};
 
-	struct Transform
+	struct TransformComponent
 	{
 		glm::vec3 position;
 		glm::vec3 rotation;
@@ -117,7 +112,7 @@ namespace Mulcan
 	bool SpawnSampleCube();
 	bool SpawnCustomModel(const char *pFilePath);
 
-	void RemoveModel(uint32_t pHandle);
+	void RemoveModel(std::string name);
 
 	glm::mat4 CreateModelMatrix(const glm::vec3 &pPos, const glm::vec3 &pRotation, const glm::vec3 &pScale);
 
