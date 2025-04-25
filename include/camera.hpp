@@ -30,24 +30,50 @@ private:
     float mNear = 0.1f;
     float mFar = 100.f;
 
-    void Initialize();
-
-    VmaAllocator &mAllocator;
+    const VmaAllocator *mAllocator;
+    Mulcan::Descriptor::DoubleBufferedDescriptorCtx mDescriptor;
 
 public:
-    Mulcan::Descriptor::DoubleBufferedDescriptorCtx mCtx;
-
-    Camera(const Mulcan::Descriptor::DoubleBufferedDescriptorCtx &ctx, VmaAllocator &allocator);
+    Camera(const Mulcan::Descriptor::DoubleBufferedDescriptorCtx &ctx, const VmaAllocator *allocator);
 
     Camera(const Camera &other) = delete;
     Camera operator=(const Camera &other) = delete;
 
-    GPUCameraData &GetCameraData();
-    void UpdateCamera(int frameIndex);
+    void updateCamera(int frameIndex);
 
-    void ChangeCameraPos(const glm::vec3 &position);
-    void ChangeProjection(float fov, float aspect, float near, float end);
+    /**
+     * @brief Sets the position of the camera in world space.
+     *
+     * @param position A 3D vector representing the new camera position.
+     */
+    void changeCameraPos(const glm::vec3 &position);
+
+    /**
+     * @brief Updates the camera's projection matrix using the specified perspective parameters.
+     *
+     * @param fov    Field of view in degrees (vertical).
+     * @param aspect Aspect ratio of the viewport (width / height).
+     * @param near   Distance to the near clipping plane.
+     * @param end    Distance to the far clipping plane.
+     */
+    void changeProjection(float fov, float aspect, float near, float end);
+
+    /**
+     * @brief Updates the aspect ratio of the camera projection based on new viewport dimensions.
+     *
+     * @param width  Width of the viewport.
+     * @param height Height of the viewport.
+     */
     void changeAspect(float width, float height);
 
-    void Cleanup();
+    /// @brief Returns the Descriptor set for a certain frame.
+    /// @param frameIndex Frame scene currently is in.
+    /// @return VkDescriptorSet
+    VkDescriptorSet &getSet(int frameIndex);
+
+    /// @brief Returns the Camera data such as view and projection.
+    /// @return GPUCameraData
+    GPUCameraData &getCameraData();
+
+    void cleanup();
 };

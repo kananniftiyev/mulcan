@@ -1,6 +1,6 @@
 #include "camera.hpp"
 
-Camera::Camera(const Mulcan::Descriptor::DoubleBufferedDescriptorCtx &ctx, VmaAllocator &allocator) : mCtx(ctx), mAllocator(allocator)
+Camera::Camera(const Mulcan::Descriptor::DoubleBufferedDescriptorCtx &ctx, const VmaAllocator *allocator) : mDescriptor(ctx), mAllocator(allocator)
 {
     // Inital Camera Settings
     mCamPosition = {0.f, -0.f, -5.f};
@@ -13,20 +13,25 @@ Camera::Camera(const Mulcan::Descriptor::DoubleBufferedDescriptorCtx &ctx, VmaAl
     // Descritpor set
 }
 
-GPUCameraData &Camera::GetCameraData()
+VkDescriptorSet &Camera::getSet(int frameIndex)
+{
+    return this->mDescriptor.set[frameIndex];
+}
+
+GPUCameraData &Camera::getCameraData()
 {
     return mCameraData;
 }
 
-void Camera::UpdateCamera(int frameIndex)
+void Camera::updateCamera(int frameIndex)
 {
     mCameraData.proj = mProjection;
     mCameraData.view = mView;
     mCameraData.viewproj = mProjection * mView;
-    Mulcan::Descriptor::updateData(mAllocator, mCtx.buffers[frameIndex].allocation, &mCameraData, sizeof(GPUCameraData));
+    Mulcan::Descriptor::updateData(*mAllocator, mDescriptor.buffers[frameIndex].allocation, &mCameraData, sizeof(GPUCameraData));
 }
 
-void Camera::ChangeCameraPos(const glm::vec3 &position)
+void Camera::changeCameraPos(const glm::vec3 &position)
 {
     if (mCamPosition != position)
     {
@@ -35,7 +40,7 @@ void Camera::ChangeCameraPos(const glm::vec3 &position)
     }
 }
 
-void Camera::ChangeProjection(float fov, float aspect, float near, float end)
+void Camera::changeProjection(float fov, float aspect, float near, float end)
 {
     if (mFov != fov || mAspect != aspect || mNear != near || mFar != end)
     {
@@ -54,6 +59,6 @@ void Camera::changeAspect(float width, float height)
     mAspect = width / height;
 }
 
-void Camera::Cleanup()
+void Camera::cleanup()
 {
 }

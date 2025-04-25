@@ -5,7 +5,6 @@
 
 namespace Mulcan
 {
-
 	constexpr size_t FRAME_OVERLAP = 2;
 
 	namespace Settings
@@ -72,14 +71,9 @@ namespace Mulcan
 
 	FrameData &getCurrFrame() { return Render::gFrames[Render::gFramecount % FRAME_OVERLAP]; }
 
-	static uint32_t gUniqueHandle = 0;
-
-	AllocatedBuffer gUnifromCameraBuffer;
-
 	std::unique_ptr<Camera> gCamera;
 
 	entt::registry gRegistery;
-
 }
 
 namespace
@@ -424,7 +418,7 @@ namespace
 		auto cameraCtx = Mulcan::Descriptor::buildSetDB(Mulcan::VKContext::gDevice, Mulcan::gVmaAllocator, &cameraBuildCtx);
 
 		Mulcan::Pipeline pipeline{Mulcan::VKContext::gDevice, Mulcan::RenderPasses::gObjectMainRenderPass};
-		Mulcan::gCamera = std::make_unique<Camera>(cameraCtx, Mulcan::gVmaAllocator);
+		Mulcan::gCamera = std::make_unique<Camera>(cameraCtx, &Mulcan::gVmaAllocator);
 
 		VkPushConstantRange pushConsant{};
 		pushConsant.size = sizeof(Mulcan::MeshPushConstants);
@@ -554,17 +548,12 @@ void Mulcan::endFrame()
 	Mulcan::Render::gFramecount++;
 }
 
-inline uint32_t GenerateUniqueHandle()
-{
-	return Mulcan::gUniqueHandle++;
-}
-
-void Mulcan::RenderWorldSystem()
+void Mulcan::renderWorldSystem()
 {
 	VkDeviceSize offsets[1]{0};
 	vkCmdBindPipeline(Mulcan::getCurrCommand(), VK_PIPELINE_BIND_POINT_GRAPHICS, Mulcan::Pipelines::ObjectMainPipeline);
 
-	auto worldView = Mulcan::gRegistery.view<const Mulcan::MeshComponent, Mulcan::TransformComponent>();
+	auto worldView = Mulcan::gRegistery.view<const Mulcan::Components::MeshComponent, Mulcan::Components::TransformComponent>();
 
 	for (auto [entity, mesh, transform] : worldView.each())
 	{
@@ -578,23 +567,23 @@ void Mulcan::RenderWorldSystem()
 
 		transform.rotation = glm::vec3(0.0f, glm::radians(Mulcan::Render::gFramecount * 0.4f), 0.0f);
 
-		auto model = CreateModelMatrix(transform.position, transform.rotation, transform.scale);
+		auto model = createModelMatrix(transform.position, transform.rotation, transform.scale);
 
 		Mulcan::MeshPushConstants constants;
 		constants.render_matrix = model;
 
 		gCamera->changeAspect((float)Mulcan::Settings::gWindowExtend.width, (float)Mulcan::Settings::gWindowExtend.width);
 
-		gCamera->UpdateCamera(Mulcan::Render::gFramecount % FRAME_OVERLAP);
+		gCamera->updateCamera(Mulcan::Render::gFramecount % FRAME_OVERLAP);
 
-		vkCmdBindDescriptorSets(Mulcan::getCurrCommand(), VK_PIPELINE_BIND_POINT_GRAPHICS, Mulcan::PipelineLayouts::ObjectMainLayout, 0, 1, &gCamera->mCtx.set[Mulcan::Render::gFramecount % Mulcan::FRAME_OVERLAP], 0, nullptr);
+		vkCmdBindDescriptorSets(Mulcan::getCurrCommand(), VK_PIPELINE_BIND_POINT_GRAPHICS, Mulcan::PipelineLayouts::ObjectMainLayout, 0, 1, &gCamera->getSet(Mulcan::Render::gFramecount % Mulcan::FRAME_OVERLAP), 0, nullptr);
 		vkCmdPushConstants(Mulcan::getCurrCommand(), Mulcan::PipelineLayouts::ObjectMainLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(Mulcan::MeshPushConstants), &constants);
 
 		vkCmdDrawIndexed(Mulcan::getCurrCommand(), mesh.indexCount, 1, 0, 0, 0);
 	}
 }
 
-bool Mulcan::SpawnSampleCube()
+bool Mulcan::spawnSampleCube()
 {
 	const std::vector<Mulcan::Vertex> vertices = {
 		// Position                 // Color                // TexCoord           // Normal
@@ -633,29 +622,27 @@ bool Mulcan::SpawnSampleCube()
 		0, 1, 5,
 		0, 5, 4};
 
-	auto handle = GenerateUniqueHandle();
-
 	VkBuffer vertexBuffer, indexBuffer;
 	createTransferBuffer(vertices.data(), vertices.size() * sizeof(Mulcan::Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &vertexBuffer);
 	Mulcan::createTransferBuffer(indices.data(), indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &indexBuffer);
 
 	const auto entity = Mulcan::gRegistery.create();
 
-	MeshComponent mesh{
+	Components::MeshComponent mesh{
 		.name = "cube", // TODO: Increment name if same name exists
 		.vertexBuffer = vertexBuffer,
 		.indexBuffer = indexBuffer,
 		.indexCount = 36,
 		.isVisible = true};
 
-	TransformComponent transform{
+	Components::TransformComponent transform{
 		.position = glm::vec3(0.0f),
 		.rotation = glm::vec3(0.0f),
 		.scale = glm::vec3(1.0f),
 		.isChanged = true};
 
-	Mulcan::gRegistery.emplace<Mulcan::MeshComponent>(entity, mesh);
-	Mulcan::gRegistery.emplace<Mulcan::TransformComponent>(entity, transform);
+	Mulcan::gRegistery.emplace<Mulcan::Components::MeshComponent>(entity, mesh);
+	Mulcan::gRegistery.emplace<Mulcan::Components::TransformComponent>(entity, transform);
 
 	Mulcan::addDestroyBuffer(vertexBuffer);
 	Mulcan::addDestroyBuffer(indexBuffer);
@@ -663,14 +650,14 @@ bool Mulcan::SpawnSampleCube()
 	return true;
 }
 
-bool Mulcan::SpawnCustomModel(const char *pFilePath)
+bool Mulcan::spawnCustomModel(const char *pFilePath)
 {
 	return false;
 }
 
-void Mulcan::RemoveModel(std::string name)
+void Mulcan::removeModel(std::string name)
 {
-	auto deleteView = Mulcan::gRegistery.view<MeshComponent>();
+	auto deleteView = Mulcan::gRegistery.view<Components::MeshComponent>();
 	for (auto [entity, mesh] : deleteView.each())
 	{
 		if (name == mesh.name)
@@ -680,7 +667,7 @@ void Mulcan::RemoveModel(std::string name)
 	}
 }
 
-inline glm::mat4 Mulcan::CreateModelMatrix(const glm::vec3 &pPos, const glm::vec3 &pRotation, const glm::vec3 &pScale)
+inline glm::mat4 Mulcan::createModelMatrix(const glm::vec3 &pPos, const glm::vec3 &pRotation, const glm::vec3 &pScale)
 {
 	glm::mat4 model = glm::mat4(1.0f);
 	model = glm::scale(model, pScale); // 1. Scale

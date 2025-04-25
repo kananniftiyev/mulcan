@@ -38,7 +38,7 @@ namespace Mulcan::Descriptor
 
     void addBindingToSetDB(const VkDescriptorSetLayoutBinding &binding, DoubleBufferedDescriptorBuildCtx *ctx);
     void addBufferToSetDB(size_t allocationSize, DoubleBufferedDescriptorBuildCtx *ctx);
-    void updateData(VmaAllocator &allocator, VmaAllocation allocation, const void *pData, size_t size);
+    void updateData(const VmaAllocator &allocator, VmaAllocation allocation, const void *pData, size_t size);
     DoubleBufferedDescriptorCtx buildSetDB(VkDevice &device, VmaAllocator &allocator, DoubleBufferedDescriptorBuildCtx *ctx);
-
+    // TODO: Deletion queue.
 } // namespace Mulcan

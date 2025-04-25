@@ -21,7 +21,7 @@ void Mulcan::Descriptor::addBufferToSetDB(size_t allocationSize, DoubleBufferedD
     ctx->bufferCreateInfo = bufferInfo;
 }
 
-void Mulcan::Descriptor::updateData(VmaAllocator &allocator, VmaAllocation allocation, const void *pData, size_t size)
+void Mulcan::Descriptor::updateData(const VmaAllocator &allocator, VmaAllocation allocation, const void *pData, size_t size)
 {
     void *data;
     vmaMapMemory(allocator, allocation, &data);

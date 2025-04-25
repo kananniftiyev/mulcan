@@ -28,6 +28,7 @@
 #include "camera.hpp"
 #include "common_types.hpp"
 #include <entt/entt.hpp>
+#include "components.hpp"
 
 namespace Mulcan
 {
@@ -76,23 +77,6 @@ namespace Mulcan
 		glm::mat4 render_matrix;
 	};
 
-	struct MeshComponent
-	{
-		std::string name;
-		VkBuffer vertexBuffer;
-		VkBuffer indexBuffer;
-		uint32_t indexCount;
-		bool isVisible = false;
-	};
-
-	struct TransformComponent
-	{
-		glm::vec3 position;
-		glm::vec3 rotation;
-		glm::vec3 scale;
-		bool isChanged;
-	};
-
 	extern VmaAllocator gVmaAllocator;
 
 	// Init Functions
@@ -103,18 +87,18 @@ namespace Mulcan
 	void endFrame();
 
 	// Systems
-	void RenderWorldSystem();
+	void renderWorldSystem();
 	// TODO: void RenderDebugUISystem();
 	// TODO: void RenderPostProcessSystem();
 	// TODO: void RunAllSystems();
 
 	// Objects
-	bool SpawnSampleCube();
-	bool SpawnCustomModel(const char *pFilePath);
+	bool spawnSampleCube();
+	bool spawnCustomModel(const char *pFilePath);
 
-	void RemoveModel(std::string name);
+	void removeModel(std::string name);
 
-	glm::mat4 CreateModelMatrix(const glm::vec3 &pPos, const glm::vec3 &pRotation, const glm::vec3 &pScale);
+	glm::mat4 createModelMatrix(const glm::vec3 &pPos, const glm::vec3 &pRotation, const glm::vec3 &pScale);
 
 	// Settigns functions
 	void setVsync(bool pValue);

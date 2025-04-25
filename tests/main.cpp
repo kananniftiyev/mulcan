@@ -20,7 +20,7 @@ int main()
     Mulcan::initialize(window, WIDTH, HEIGHT);
     Mulcan::setVsync(false);
 
-    Mulcan::SpawnSampleCube();
+    Mulcan::spawnSampleCube();
 
     bool fullscreen = false;
     bool quit = false;
@@ -65,7 +65,7 @@ int main()
 
         Mulcan::beginFrame();
 
-        Mulcan::RenderWorldSystem();
+        Mulcan::renderWorldSystem();
 
         Mulcan::endFrame();
     }
