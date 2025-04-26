@@ -29,6 +29,7 @@
 #include "common_types.hpp"
 #include <entt/entt.hpp>
 #include "components.hpp"
+#include "buffer_manager.hpp"
 
 namespace Mulcan
 {
@@ -51,12 +52,6 @@ namespace Mulcan
 		VkFence fence;
 		VkCommandPool pool;
 		VkCommandBuffer cmd;
-	};
-
-	struct TransferBuffer
-	{
-		VkBuffer src, dst;
-		size_t buffer_size;
 	};
 
 	struct NewPipelineDescription
@@ -103,11 +98,6 @@ namespace Mulcan
 	// Settigns functions
 	void setVsync(bool pValue);
 	void setImgui(bool pValue);
-
-	// Buffers
-	bool addTransferBuffer(const Mulcan::TransferBuffer &pTransferBuffer);
-	void createTransferBuffer(const void *pData, size_t size, VkBufferUsageFlags pFlag, VkBuffer *outBuffer);
-	void addDestroyBuffer(VkBuffer &pBuffer);
 
 	// Getter funcs
 	VkCommandBuffer getCurrCommand();

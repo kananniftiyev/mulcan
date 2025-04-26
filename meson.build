@@ -27,6 +27,7 @@ all_deps = [
 ]
 
 mulcan_src = files(
+    'src/buffer_manager.cpp',
     'src/camera.cpp',
     'src/descriptor.cpp',
     'src/mulcan.cpp',

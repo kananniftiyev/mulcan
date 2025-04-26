@@ -61,4 +61,8 @@ void Camera::changeAspect(float width, float height)
 
 void Camera::cleanup()
 {
+    for (size_t i = 0; i < 2; i++)
+    {
+        vmaDestroyBuffer(*this->mAllocator, this->mDescriptor.buffers[i].buffer, this->mDescriptor.buffers[i].allocation);
+    }
 }

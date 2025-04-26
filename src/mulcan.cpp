@@ -66,14 +66,13 @@ namespace Mulcan
 	} // namespace RenderPasses
 
 	ImmediateSubmitData gBufferTransfer;
-	std::vector<TransferBuffer> gTransferBuffers;
-	std::vector<VkBuffer> gBufferDeletionList;
 
 	FrameData &getCurrFrame() { return Render::gFrames[Render::gFramecount % FRAME_OVERLAP]; }
 
 	std::unique_ptr<Camera> gCamera;
 
 	entt::registry gRegistery;
+	std::unique_ptr<BufferManager> gBufferManager;
 }
 
 namespace
@@ -83,9 +82,6 @@ namespace
 		// Settings
 		Mulcan::Settings::gWindowExtend.width = pWidth;
 		Mulcan::Settings::gWindowExtend.height = pHeigth;
-
-		// containers
-		Mulcan::gTransferBuffers.reserve(100);
 	}
 
 	void initializeSwapchain()
@@ -353,7 +349,7 @@ namespace
 		vkCmdPipelineBarrier(pCmd, VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT, 0, 0, nullptr, 0, nullptr, 1, &info);
 	}
 
-	void runTransferBufferCommand()
+	void runTransferBufferCommand(std::vector<TransferBuffer> &stagingBuffers)
 	{
 		auto cmd = Mulcan::gBufferTransfer.cmd;
 
@@ -365,10 +361,10 @@ namespace
 		copy.dstOffset = 0;
 		copy.srcOffset = 0;
 
-		for (const auto &buf : Mulcan::gTransferBuffers)
+		for (const auto &buf : stagingBuffers)
 		{
 			copy.size = buf.buffer_size;
-			vkCmdCopyBuffer(cmd, buf.src, buf.dst, 1, &copy);
+			vkCmdCopyBuffer(cmd, buf.src.buffer, buf.dst.buffer, 1, &copy);
 		}
 
 		CHECK_VK_LOG(vkEndCommandBuffer(cmd));
@@ -393,10 +389,10 @@ namespace
 
 		vkResetCommandPool(Mulcan::VKContext::gDevice, Mulcan::gBufferTransfer.pool, 0);
 
-		for (auto &buf : Mulcan::gTransferBuffers)
+		for (auto &buf : stagingBuffers)
 		{
 			spdlog::info("Deleted Src buffer, size of buffer: {}", sizeof(buf.buffer_size));
-			vmaDestroyBuffer(Mulcan::gVmaAllocator, buf.src, nullptr);
+			vmaDestroyBuffer(Mulcan::gVmaAllocator, buf.src.buffer, buf.src.allocation);
 		}
 	}
 }
@@ -458,6 +454,8 @@ void Mulcan::initialize(SDL_Window *&pWindow, uint32_t pWidth, uint32_t pHeigth)
 	InitObjectMainPipeline();
 	InitObjectShadowPipeline();
 	InitObjectSkyboxPipeline();
+
+	Mulcan::gBufferManager = std::make_unique<BufferManager>(&Mulcan::VKContext::gDevice, &Mulcan::gVmaAllocator);
 }
 
 // TODO: remove allocations.
@@ -465,7 +463,7 @@ void Mulcan::beginFrame()
 {
 	if (!Mulcan::Flags::hasRunTransferCommands)
 	{
-		runTransferBufferCommand();
+		runTransferBufferCommand(gBufferManager->getStaginBuffers());
 		Mulcan::Flags::hasRunTransferCommands = true;
 	}
 
@@ -562,8 +560,8 @@ void Mulcan::renderWorldSystem()
 			continue;
 		}
 
-		vkCmdBindVertexBuffers(Mulcan::getCurrCommand(), 0, 1, &mesh.vertexBuffer, offsets);
-		vkCmdBindIndexBuffer(Mulcan::getCurrCommand(), mesh.indexBuffer, 0, VK_INDEX_TYPE_UINT32);
+		vkCmdBindVertexBuffers(Mulcan::getCurrCommand(), 0, 1, &mesh.vertexBuffer.buffer, offsets);
+		vkCmdBindIndexBuffer(Mulcan::getCurrCommand(), mesh.indexBuffer.buffer, 0, VK_INDEX_TYPE_UINT32);
 
 		transform.rotation = glm::vec3(0.0f, glm::radians(Mulcan::Render::gFramecount * 0.4f), 0.0f);
 
@@ -622,9 +620,8 @@ bool Mulcan::spawnSampleCube()
 		0, 1, 5,
 		0, 5, 4};
 
-	VkBuffer vertexBuffer, indexBuffer;
-	createTransferBuffer(vertices.data(), vertices.size() * sizeof(Mulcan::Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, &vertexBuffer);
-	Mulcan::createTransferBuffer(indices.data(), indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT, &indexBuffer);
+	auto vertexBuffer = gBufferManager->createStagingBuffer(vertices.data(), vertices.size() * sizeof(Mulcan::Vertex), VK_BUFFER_USAGE_VERTEX_BUFFER_BIT);
+	auto indexBuffer = gBufferManager->createStagingBuffer(indices.data(), indices.size() * sizeof(uint32_t), VK_BUFFER_USAGE_INDEX_BUFFER_BIT);
 
 	const auto entity = Mulcan::gRegistery.create();
 
@@ -643,9 +640,6 @@ bool Mulcan::spawnSampleCube()
 
 	Mulcan::gRegistery.emplace<Mulcan::Components::MeshComponent>(entity, mesh);
 	Mulcan::gRegistery.emplace<Mulcan::Components::TransformComponent>(entity, transform);
-
-	Mulcan::addDestroyBuffer(vertexBuffer);
-	Mulcan::addDestroyBuffer(indexBuffer);
 
 	return true;
 }
@@ -689,67 +683,6 @@ void Mulcan::setImgui(bool pValue)
 	Mulcan::Settings::gImgui = pValue;
 }
 
-bool Mulcan::addTransferBuffer(const Mulcan::TransferBuffer &pTransferBuffer)
-{
-	if (pTransferBuffer.buffer_size == 0 || pTransferBuffer.src == VK_NULL_HANDLE || pTransferBuffer.dst == VK_NULL_HANDLE)
-	{
-		return false;
-	}
-	Mulcan::gTransferBuffers.push_back(pTransferBuffer);
-
-	return true;
-}
-
-void Mulcan::createTransferBuffer(const void *pData, size_t size, VkBufferUsageFlags pFlag, VkBuffer *outBuffer)
-{
-	// CPU side
-	VkBufferCreateInfo buffer_info{};
-	buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	buffer_info.size = size;
-	buffer_info.usage = VK_BUFFER_USAGE_TRANSFER_SRC_BIT;
-
-	VmaAllocationCreateInfo vma_alloc_info{};
-	vma_alloc_info.usage = VMA_MEMORY_USAGE_CPU_ONLY;
-	vma_alloc_info.memoryTypeBits = VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT;
-
-	AllocatedBuffer staging_buffer;
-	CHECK_VK_LOG(vmaCreateBuffer(Mulcan::gVmaAllocator, &buffer_info, &vma_alloc_info, &staging_buffer.buffer, &staging_buffer.allocation, nullptr));
-
-	void *data;
-	vmaMapMemory(Mulcan::gVmaAllocator, staging_buffer.allocation, &data);
-
-	memcpy(data, pData, size);
-
-	vmaUnmapMemory(Mulcan::gVmaAllocator, staging_buffer.allocation);
-
-	// GPU side
-	VkBufferCreateInfo gpu_buffer_info{};
-	gpu_buffer_info.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO;
-	gpu_buffer_info.size = size;
-	gpu_buffer_info.usage = pFlag | VK_BUFFER_USAGE_TRANSFER_DST_BIT;
-
-	vma_alloc_info.usage = VMA_MEMORY_USAGE_GPU_ONLY;
-	vma_alloc_info.memoryTypeBits = VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT;
-
-	AllocatedBuffer gpu_buffer;
-
-	CHECK_VK_LOG(vmaCreateBuffer(Mulcan::gVmaAllocator, &gpu_buffer_info, &vma_alloc_info, &gpu_buffer.buffer, &gpu_buffer.allocation, nullptr));
-
-	TransferBuffer tb{};
-	tb.src = staging_buffer.buffer;
-	tb.dst = gpu_buffer.buffer;
-	tb.buffer_size = size;
-
-	auto res_add = addTransferBuffer(tb);
-	if (!res_add)
-	{
-		spdlog::error("Could not add to transfer buffer");
-		abort();
-	}
-
-	*outBuffer = gpu_buffer.buffer;
-}
-
 void Mulcan::recreateSwapchain(uint32_t pWidth, uint32_t pHeight)
 {
 	Mulcan::Settings::gWindowExtend.width = pWidth;
@@ -762,29 +695,14 @@ void Mulcan::recreateSwapchain(uint32_t pWidth, uint32_t pHeight)
 	LOG("Recreated the Swapchain");
 }
 
-void Mulcan::addDestroyBuffer(VkBuffer &pBuffer)
-{
-	if (pBuffer == VK_NULL_HANDLE)
-	{
-		spdlog::error("Buffer is null. Cannot delete null buffers!!!");
-		return;
-	}
-
-	Mulcan::gBufferDeletionList.push_back(pBuffer);
-}
-
 // TODO: deletion queue
 void Mulcan::shutdown()
 {
 	vkDeviceWaitIdle(Mulcan::VKContext::gDevice);
 
-	for (auto &buffer : Mulcan::gBufferDeletionList)
-	{
-		LOG("destroying buffer");
-		vmaDestroyBuffer(Mulcan::gVmaAllocator, buffer, nullptr);
-	}
+	gBufferManager->releaseAllResources();
 
-	vmaDestroyImage(Mulcan::gVmaAllocator, Mulcan::Render::gDepthImage.image, nullptr);
+	vmaDestroyImage(Mulcan::gVmaAllocator, Mulcan::Render::gDepthImage.image, Mulcan::Render::gDepthImage.allocation);
 	LOG("deleted image");
 
 	for (auto &framebuffer : Mulcan::Render::gMainFramebuffers)
